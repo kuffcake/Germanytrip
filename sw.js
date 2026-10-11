@@ -1,10 +1,17 @@
 /* Offline support: everything the app needs is cached on first load.
    Bump VERSION whenever any file changes so phones pick up the update. */
-const VERSION = 'railloop-v1';
+const VERSION = 'railloop-v2';
+// Street map tiles are saved as you view them, so places you looked at on wifi still show with no signal.
+const TILES = 'railloop-tiles';
+const TILE_HOST = 'tile.openstreetmap.org';
+const TILE_LIMIT = 1500;
 const ASSETS = [
   './',
   'index.html',
   'manifest.webmanifest',
+  'vendor/leaflet.js',
+  'vendor/leaflet.css',
+  'vendor/borders.js',
   'fonts/fonts.css',
   'fonts/barlow-400-latin.woff2',
   'fonts/barlow-400-latin-ext.woff2',
@@ -31,14 +38,32 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== TILES).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
+async function tile(req) {
+  const cache = await caches.open(TILES);
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok) {
+    await cache.put(req, res.clone());
+    // Occasionally drop the oldest tiles so the cache cannot grow without bound.
+    if (Math.random() < 0.05) {
+      const keys = await cache.keys();
+      if (keys.length > TILE_LIMIT) await Promise.all(keys.slice(0, keys.length - TILE_LIMIT).map(k => cache.delete(k)));
+    }
+  }
+  return res;
+}
+
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.method !== 'GET') return;
+  if (new URL(req.url).hostname === TILE_HOST) { e.respondWith(tile(req)); return; }
+  if (new URL(req.url).origin !== self.location.origin) return;
   // Cache first so the app opens instantly with no signal; refresh the copy in the background.
   e.respondWith(
     caches.open(VERSION).then(async cache => {

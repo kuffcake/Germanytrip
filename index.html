@@ -16,6 +16,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="vendor/leaflet.css">
 <style>
 :root{
   --paper:#EDEFEA; --card:#FFFFFF; --ink:#1B1F27; --muted:#5B6270; --line:#D5D9D2;
@@ -55,7 +56,7 @@ main{max-width:640px;margin:0 auto;padding:20px 18px 110px}
 
 /* Tab bar */
 nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
-nav.tabs .inner{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs .inner{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
 nav.tabs button{background:none;border:0;padding:10px 2px 12px;font-family:"Barlow Condensed",Arial,sans-serif;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;border-top:3px solid transparent}
 nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--signal)}
 
@@ -99,6 +100,40 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--si
 .stop .body{padding:0 14px 14px}
 .chip{display:inline-block;font-size:13px;padding:1px 8px;border-radius:6px;background:var(--soft,var(--de-soft));color:var(--c,var(--de));font-weight:600}
 
+/* Map tab: fills the screen between the header and the tab bar */
+main.maptab{display:flex;flex-direction:column;height:calc(100dvh - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));padding-bottom:62px}
+.jump{display:flex;gap:8px;overflow-x:auto;margin:0 -18px 12px;padding:0 18px 2px;scrollbar-width:none;flex:none}
+.jump::-webkit-scrollbar{display:none}
+.jump .btn{flex:none;white-space:nowrap}
+.jump .btn:not(.primary){background:var(--card)}
+.mapbox{position:relative;flex:1;min-height:260px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+#map{position:absolute;inset:0}
+.mapmsg{position:absolute;left:10px;top:10px;z-index:500;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--signal);border-radius:0 8px 8px 0;padding:5px 10px;font-size:13px;max-width:calc(100% - 70px)}
+.mapmsg:empty{display:none}
+.leaflet-container{background:var(--paper);font:inherit;color:var(--ink)}
+.leaflet-container a{color:inherit}
+.leaflet-bar a,.leaflet-bar a:hover{background:var(--card);color:var(--ink);border-bottom-color:var(--line)}
+.leaflet-control-attribution{background:var(--card)!important;color:var(--muted);font-size:10px}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:var(--card);color:var(--ink);box-shadow:0 2px 12px rgba(0,0,0,.25)}
+.leaflet-popup-content-wrapper{border-radius:12px}
+.leaflet-popup-content{margin:12px 14px;font-size:15px;line-height:1.4;min-width:170px}
+.leaflet-popup-content h3{font-size:20px;margin-bottom:2px}
+.leaflet-container a.leaflet-popup-close-button{color:var(--muted)}
+.bd{fill:var(--card);fill-opacity:1;stroke:var(--line);stroke-width:1.5}
+.bd-DEU{fill:var(--de-soft)} .bd-POL{fill:var(--pl-soft)} .bd-AUT{fill:var(--at-soft)}
+.rt{fill:none;stroke-width:5;stroke-linecap:round;stroke:var(--c)}
+.rt.side{stroke-width:3;stroke-dasharray:2 8}
+.pin{display:flex;align-items:center;justify-content:center}
+.pin i{display:block;border-radius:50%;box-shadow:0 1px 3px rgba(0,0,0,.4)}
+.pin.p-city i{width:20px;height:20px;background:var(--card);border:5px solid var(--c)}
+.pin.p-city.p-now i{background:var(--signal)}
+.pin.p-sight i{width:14px;height:14px;background:var(--c);border:2px solid #fff}
+.pin.p-me i{width:16px;height:16px;background:#1E88E5;border:3px solid #fff;box-shadow:0 0 0 6px rgba(30,136,229,.25)}
+.leaflet-tooltip.city{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;font-weight:600;font-size:14px;box-shadow:none}
+.leaflet-tooltip.city::before{display:none}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}}
+:root[data-theme="dark"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
+
 /* Checklist */
 .check{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
 .check:first-child{border-top:0}
@@ -140,11 +175,14 @@ td.r{text-align:right;white-space:nowrap}
 <nav class="tabs" aria-label="Sections"><div class="inner" role="tablist">
   <button role="tab" data-tab="today">Today</button>
   <button role="tab" data-tab="route">Route</button>
+  <button role="tab" data-tab="map">Map</button>
   <button role="tab" data-tab="book">To book</button>
   <button role="tab" data-tab="words">Words</button>
   <button role="tab" data-tab="money">Money</button>
 </div></nav>
 
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/borders.js"></script>
 <script>
 /* ---------- Data from the itinerary ---------- */
 const CC = {DE:'de',PL:'pl',AT:'at',US:'us'};
@@ -227,6 +265,25 @@ const CHOICE = {
   neu:{s:'Neuschwanstein Castle',q:'Neuschwanstein Castle',n:'Full day, about 2 hrs each way. Timed tickets sell out, so book ahead.',leg:{a:'München Hauptbahnhof',b:'Füssen',mode:'Regional train to Füssen, then bus to Hohenschwangau',dur:'about 2 hrs'}}
 };
 const STOPS = [['Berlin',2,'DE'],['Potsdam',4,'DE'],['Wittenberg',5,'DE'],['Leipzig',5,'DE'],['Dresden',6,'DE'],['Wrocław',7,'PL'],['Kraków',7,'PL'],['Vienna',10,'AT'],['Munich',12,'DE'],['Nuremberg',14,'DE']];
+
+/* Map coordinates [lat, lng]: stops by name, sights by their Maps query */
+const STOP_GEO = {'Berlin':[52.5200,13.4050],'Potsdam':[52.3989,13.0657],'Wittenberg':[51.8664,12.6433],'Leipzig':[51.3397,12.3731],'Dresden':[51.0504,13.7373],'Wrocław':[51.1079,17.0385],'Kraków':[50.0614,19.9366],'Vienna':[48.2082,16.3738],'Munich':[48.1374,11.5755],'Nuremberg':[49.4521,11.0767]};
+const GEO = {
+ 'Brandenburg Gate Berlin':[52.5163,13.3777],'Unter den Linden Berlin':[52.5170,13.3889],'Pariser Platz Berlin':[52.5161,13.3790],
+ 'Pergamonmuseum Berlin':[52.5212,13.3969],'Neues Museum Berlin':[52.5201,13.3978],'Reichstag Building Berlin':[52.5186,13.3762],'Checkpoint Charlie Berlin':[52.5075,13.3904],
+ 'Schloss Sanssouci Potsdam':[52.4042,13.0385],'Schloss Cecilienhof Potsdam':[52.4192,13.0708],'East Side Gallery Berlin':[52.5050,13.4397],'Berlin Wall Memorial Bernauer Strasse':[52.5352,13.3903],
+ 'Schlosskirche Wittenberg':[51.8663,12.6325],
+ 'Thomaskirche Leipzig':[51.3393,12.3726],'Bach-Museum Leipzig':[51.3389,12.3720],'Völkerschlachtdenkmal Leipzig':[51.3123,12.4132],'Zwinger Dresden':[51.0530,13.7339],'Frauenkirche Dresden':[51.0519,13.7416],
+ 'Brühlsche Terrasse Dresden':[51.0533,13.7420],'Rynek Wrocław':[51.1100,17.0320],
+ 'Wawel Castle Krakow':[50.0540,19.9354],'Rynek Główny Kraków':[50.0617,19.9373],'St. Mary’s Basilica Krakow':[50.0616,19.9394],'Kazimierz Krakow':[50.0514,19.9450],
+ 'Auschwitz I Museum Oświęcim':[50.0266,19.2036],'Auschwitz II Birkenau':[50.0343,19.1783],
+ 'Bratislava Old Town':[48.1439,17.1085],
+ 'Schönbrunn Palace Vienna':[48.1845,16.3122],'St. Stephen’s Cathedral Vienna':[48.2085,16.3731],'Hofburg Vienna':[48.2066,16.3655],'Ringstraße Wien':[48.2030,16.3610],
+ 'Mauthausen Memorial':[48.2567,14.5011],
+ 'Marienplatz Munich':[48.1374,11.5755],'Nymphenburg Palace Munich':[48.1583,11.5033],
+ 'Kaiserburg Nürnberg':[49.4579,11.0758],'Dokumentationszentrum Reichsparteitagsgelände Nürnberg':[49.4336,11.1126],
+ 'KZ-Gedenkstätte Dachau':[48.2700,11.4680],'Neuschwanstein Castle':[47.5576,10.7498]
+};
 
 const BOOK_DEFAULT = [
  {id:'fl',t:'Flights LAX to Berlin, and Munich or Nuremberg to LAX',grp:'Travel'},
@@ -405,7 +462,7 @@ function vRoute(){
   const td=tripDay();
   let h=`<h1 style="font-size:36px;margin:4px 0 4px">The route</h1><p class="muted" style="margin:0 0 18px">Tap a day to see trains, sights and directions.</p><div class="line">`;
   DAYS.forEach(d=>{
-    h+=`<div class="stop ${td===d.n?'now':''}" style="--c:${col(d.c)};--soft:${soft(d.c)}"><details ${td===d.n?'open':''}><summary><span class="dn">${d.n}</span><span class="st"><h3>${esc(d.title)}</h3><span class="small muted">${S.start?esc(dateFor(d.n))+', ':''}${d.legs.length?esc(d.legs.map(l=>l.dur).join(' + ')):'No long transfers'}</span></span></summary><div class="body">${dayBody(d)}</div></details></div>`;
+    h+=`<div class="stop ${td===d.n?'now':''}" id="day${d.n}" style="--c:${col(d.c)};--soft:${soft(d.c)}"><details ${td===d.n||focusDay===d.n?'open':''}><summary><span class="dn">${d.n}</span><span class="st"><h3>${esc(d.title)}</h3><span class="small muted">${S.start?esc(dateFor(d.n))+', ':''}${d.legs.length?esc(d.legs.map(l=>l.dur).join(' + ')):'No long transfers'}</span></span></summary><div class="body">${dayBody(d)}</div></details></div>`;
   });
   h+=`</div><div class="panel" style="margin-top:18px"><h2>Trip settings</h2><label for="sd2" class="small muted">Departure date (Day 1)</label><div class="row" style="margin-top:6px"><input id="sd2" type="date" value="${esc(S.start)}"><button class="btn" id="setd2">Update</button></div></div>`;
   return h;
@@ -457,13 +514,83 @@ function vMoney(){
   return h;
 }
 
+/* ---------- Map ---------- */
+let map=null, mapView=null, meMarker=null, focusDay=null;
+const TRIP_BOUNDS=[[47.4,10.6],[52.7,20.1]];
+// Which side each city label sits on, so neighbours do not overlap when zoomed out
+const LABEL_DIR={Potsdam:'left',Wittenberg:'left',Leipzig:'left',Vienna:'bottom',Munich:'bottom'};
+const LABEL_OFF={top:[0,-10],bottom:[0,10],left:[-10,0]};
+function vMap(){
+  return `<h1 style="font-size:36px;margin:4px 0 12px">Map</h1>
+  <div class="jump" role="group" aria-label="Jump to"><button class="btn primary" data-jump="me">My location</button><button class="btn" data-jump="all">Whole trip</button>${STOPS.map((s,i)=>`<button class="btn" data-jump="${i}">${esc(s[0])}</button>`).join('')}</div>
+  <div class="mapbox"><div id="map" role="application" aria-label="Trip map"></div><div class="mapmsg" id="mapmsg" role="status"></div></div>`;
+}
+function stopDays(name){
+  const ds=DAYS.filter(d=>d.place.includes(name)||d.night===name).map(d=>d.n);
+  return ds.length>1?`Days ${ds[0]}–${ds[ds.length-1]}`:`Day ${ds[0]}`;
+}
+function pin(kind,c){ return L.divIcon({className:'',iconSize:[34,34],iconAnchor:[17,17],popupAnchor:[0,-10],html:`<div class="pin ${kind}" style="width:34px;height:34px;--c:${c}"><i></i></div>`}); }
+function popup(title,sub,day,q){
+  const el=document.createElement('div');
+  el.innerHTML=`<h3>${esc(title)}</h3><div class="small muted">${esc(sub)}</div><div class="btnrow"><button class="btn primary">See day ${day}</button>${q?`<a class="btn" target="_blank" rel="noopener" href="${g(q)}">Open in Maps</a>`:''}</div>`;
+  el.querySelector('button').addEventListener('click',()=>{ focusDay=day; S.tab='route'; save(); render(); const s=document.getElementById('day'+day); if(s) s.scrollIntoView({block:'start'}); focusDay=null; });
+  return el;
+}
+function mapMsg(t){ const m=document.getElementById('mapmsg'); if(m) m.textContent=t||(navigator.onLine?'':'No signal: showing the route, pins and any streets you have already viewed.'); }
+function closeMap(){ if(!map) return; try{ mapView={c:map.getCenter(),z:map.getZoom()}; }catch(e){} map.remove(); map=null; meMarker=null; }
+function initMap(){
+  const td=tripDay(); let idx=-1; if(td>=1&&td<=14) STOPS.forEach((s,i)=>{ if(s[1]<=td) idx=i; });
+  map=L.map('map',{zoomControl:true,attributionControl:true,minZoom:4,maxBounds:[[40,0],[58,30]]});
+  map.attributionControl.setPrefix(false);
+  if(mapView) map.setView(mapView.c,mapView.z);
+  else if(idx>=0) map.setView(STOP_GEO[STOPS[idx][0]],12);
+  else map.fitBounds(TRIP_BOUNDS);
+  // Country outlines sit under the street tiles, so the map still reads with no signal.
+  map.createPane('base').style.zIndex=100;
+  L.geoJSON(BORDERS,{pane:'base',interactive:false,style:f=>({className:'bd bd-'+f.id})}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,crossOrigin:true,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
+
+  const line=(a,b,c,side)=>L.polyline([a,b],{className:'rt'+(side?' side':''),interactive:false}).addTo(map).getElement().style.setProperty('--c',col(c));
+  STOPS.forEach((s,i)=>{ if(i) line(STOP_GEO[STOPS[i-1][0]],STOP_GEO[s[0]],s[2]); });
+  line(STOP_GEO['Kraków'],GEO['Auschwitz I Museum Oświęcim'],'PL',true);
+  if(S.choice) line(STOP_GEO['Munich'],GEO[CHOICE[S.choice].q],'DE',true);
+
+  const cities=L.layerGroup(), sights=L.layerGroup();
+  STOPS.forEach((s,i)=>{
+    L.marker(STOP_GEO[s[0]],{icon:pin('p-city'+(i===idx?' p-now':''),col(s[2])),zIndexOffset:500,title:s[0]})
+      .bindPopup(popup(s[0],stopDays(s[0]),s[1])).bindTooltip(s[0],{permanent:true,direction:LABEL_DIR[s[0]]||'top',offset:LABEL_OFF[LABEL_DIR[s[0]]||'top'],className:'city'}).addTo(cities);
+  });
+  DAYS.forEach(d=>{
+    const list=d.choice&&S.choice?d.sights.concat(CHOICE[S.choice]):d.sights;
+    list.forEach(x=>{ if(GEO[x.q]) L.marker(GEO[x.q],{icon:pin('p-sight',col(d.c)),title:x.s}).bindPopup(popup(x.s,'Day '+d.n+(x.n?'. '+x.n:''),d.n,x.q)).addTo(sights); });
+  });
+  // Zoomed out you see the loop and city names; zoom in and the sights take over.
+  const layers=()=>{ const near=map.getZoom()>=9; near?(map.addLayer(sights),map.removeLayer(cities)):(map.addLayer(cities),map.removeLayer(sights)); };
+  map.on('zoomend',layers);
+  map.on('locationfound',e=>{ if(meMarker) meMarker.remove(); meMarker=L.marker(e.latlng,{icon:pin('p-me',''),zIndexOffset:1000,interactive:false}).addTo(map); mapMsg(''); });
+  map.on('locationerror',()=>mapMsg('Could not get your location. Check that location access is allowed for this app.'));
+
+  layers(); mapMsg('');
+}
+function jump(v){
+  if(!map) return;
+  if(v==='all') map.fitBounds(TRIP_BOUNDS);
+  else if(v==='me'){ mapMsg('Finding you…'); map.locate({setView:true,maxZoom:15,enableHighAccuracy:true,timeout:15000}); }
+  else map.setView(STOP_GEO[STOPS[+v][0]],13);
+}
+window.addEventListener('online',()=>mapMsg(''));
+window.addEventListener('offline',()=>mapMsg(''));
+
 /* ---------- Render + events ---------- */
-const VIEWS={today:vToday,route:vRoute,book:vBook,words:vWords,money:vMoney};
+const VIEWS={today:vToday,route:vRoute,map:vMap,book:vBook,words:vWords,money:vMoney};
 function render(){
   const app=document.getElementById('app');
+  closeMap();
   app.innerHTML=VIEWS[S.tab]();
+  app.classList.toggle('maptab',S.tab==='map');
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
   if(S.tab==='money') convert();
+  if(S.tab==='map') initMap();
 }
 function convert(){
   const a=+document.getElementById('cvA').value||0, c=document.getElementById('cvC').value;
@@ -479,6 +606,7 @@ document.getElementById('app').addEventListener('click',e=>{
   const t=e.target;
   if(t.id==='setd'||t.id==='setd2'){ const v=document.getElementById(t.id==='setd'?'sd':'sd2').value; if(v){S.start=v;save();render();} }
   if(t.dataset.go){ S.tab=t.dataset.go; save(); render(); window.scrollTo(0,0); }
+  if(t.dataset.jump) jump(t.dataset.jump);
   if(t.dataset.choice){ S.choice=S.choice===t.dataset.choice?'':t.dataset.choice; save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
   if(t.dataset.lang){ S.lang=t.dataset.lang; save(); render(); }
   if(t.dataset.rmc){ S.custom=S.custom.filter(b=>b.id!==t.dataset.rmc); delete S.done[t.dataset.rmc]; save(); render(); }
