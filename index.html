@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rail Loop Companion</title>
+<meta name="description" content="Berlin to Vienna and back: daily plan, route, bookings, phrases and spending.">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#EDEFEA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#14171C" media="(prefers-color-scheme: dark)">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Rail Loop">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+:root{
+  --paper:#EDEFEA; --card:#FFFFFF; --ink:#1B1F27; --muted:#5B6270; --line:#D5D9D2;
+  --de:#1E3A6B; --pl:#B3262D; --at:#16787A; --us:#6B6F78; --signal:#F2B705;
+  --de-soft:#E3E9F3; --pl-soft:#F6E3E4; --at-soft:#DDEFEF;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14171C; --card:#1D2129; --ink:#ECEEF1; --muted:#A1A8B5; --line:#2E343F;
+    --de:#7FA2E0; --pl:#EE7A7F; --at:#5CC4C5; --us:#9AA0AB;
+    --de-soft:#1F2A3E; --pl-soft:#3A2225; --at-soft:#18322F;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14171C; --card:#1D2129; --ink:#ECEEF1; --muted:#A1A8B5; --line:#2E343F;
+  --de:#7FA2E0; --pl:#EE7A7F; --at:#5CC4C5; --us:#9AA0AB;
+  --de-soft:#1F2A3E; --pl-soft:#3A2225; --at-soft:#18322F;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font:400 16px/1.5 Barlow,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3,.cond{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;font-weight:600;line-height:1.1;margin:0}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+/* App feel on iPhone: no text inflation, no grey tap flash, no zoom when a field is focused */
+html{-webkit-text-size-adjust:100%}
+body{-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+button,.btn,summary,nav.tabs{-webkit-user-select:none;user-select:none;touch-action:manipulation}
+input,select{font-size:16px}
+:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+main{max-width:640px;margin:0 auto;padding:20px 18px 110px}
+.muted{color:var(--muted)}
+.small{font-size:14px}
+
+/* Tab bar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
+nav.tabs .inner{max-width:640px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{background:none;border:0;padding:10px 2px 12px;font-family:"Barlow Condensed",Arial,sans-serif;font-size:15px;font-weight:600;color:var(--muted);cursor:pointer;border-top:3px solid transparent}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--signal)}
+
+/* Today hero */
+.hero{padding:6px 0 18px}
+.hero .daynum{font-family:"Barlow Condensed",Arial,sans-serif;font-weight:700;font-size:clamp(88px,26vw,140px);line-height:.85;letter-spacing:-2px}
+.hero .daynum small{font-size:.28em;letter-spacing:0;font-weight:600;color:var(--muted);margin-left:6px}
+.hero h1{font-size:clamp(30px,8vw,42px);margin-top:8px}
+.hero .date{color:var(--muted);margin-top:4px}
+
+/* Route strip */
+.strip{overflow-x:auto;margin:6px -18px 18px;padding:0 18px}
+.strip svg{display:block;min-width:560px;width:100%;height:auto}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.panel h2{font-size:22px;margin-bottom:8px}
+.leg{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:1px dashed var(--line)}
+.leg:first-of-type{border-top:0}
+.leg .t{font-family:"Barlow Condensed",Arial,sans-serif;font-size:20px;font-weight:600}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);text-decoration:none;font-size:14px;font-weight:500;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.sight{padding:10px 0;border-top:1px solid var(--line)}
+.sight:first-child{border-top:0;padding-top:0}
+.sight b{font-weight:600}
+.flag{display:inline-block;font-size:13px;font-weight:600;padding:2px 8px;border-radius:6px;margin-left:6px;vertical-align:1px;background:var(--signal);color:#1B1F27}
+.note{border-left:4px solid var(--signal);padding:8px 12px;background:var(--card);border-radius:0 10px 10px 0;margin:10px 0}
+
+/* Route tab: vertical line */
+.line{position:relative;padding-left:34px}
+.line::before{content:"";position:absolute;left:11px;top:8px;bottom:8px;width:6px;border-radius:3px;background:linear-gradient(var(--de) 0 45%, var(--pl) 45% 72%, var(--at) 72% 84%, var(--de) 84% 100%)}
+.stop{position:relative;margin-bottom:10px}
+.stop::before{content:"";position:absolute;left:-30px;top:14px;width:18px;height:18px;border-radius:50%;background:var(--card);border:4px solid var(--c,var(--de))}
+.stop.now::before{background:var(--signal)}
+.stop details{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.stop summary{list-style:none;cursor:pointer;padding:12px 14px;display:flex;gap:12px;align-items:baseline}
+.stop summary::-webkit-details-marker{display:none}
+.stop .dn{font-family:"Barlow Condensed",Arial,sans-serif;font-weight:700;font-size:26px;min-width:30px;color:var(--c)}
+.stop .st{flex:1}
+.stop .st h3{font-size:20px}
+.stop .body{padding:0 14px 14px}
+.chip{display:inline-block;font-size:13px;padding:1px 8px;border-radius:6px;background:var(--soft,var(--de-soft));color:var(--c,var(--de));font-weight:600}
+
+/* Checklist */
+.check{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line)}
+.check:first-child{border-top:0}
+.check input{width:22px;height:22px;margin-top:2px;accent-color:var(--de);flex:none}
+.check.done .lbl{text-decoration:line-through;color:var(--muted)}
+.progress{height:8px;border-radius:4px;background:var(--line);overflow:hidden;margin:6px 0 4px}
+.progress i{display:block;height:100%;background:var(--de)}
+
+/* Phrases */
+.seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin-bottom:14px}
+.seg button{flex:1;border:0;background:none;padding:8px;border-radius:999px;font-weight:600;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.phr{padding:10px 0;border-top:1px solid var(--line)}
+.phr:first-child{border-top:0}
+.phr .src{font-family:"Barlow Condensed",Arial,sans-serif;font-size:21px;font-weight:600}
+.phr .say{font-size:14px;color:var(--muted);font-style:italic}
+.signs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sign{background:var(--de);color:#fff;border-radius:8px;padding:10px 12px}
+.sign.pl{background:var(--pl)}
+.sign b{display:block;font-family:"Barlow Condensed",Arial,sans-serif;font-size:21px;font-weight:600}
+.sign span{font-size:14px;opacity:.9}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .sign{color:#14171C}}
+:root[data-theme="dark"] .sign{color:#14171C}
+
+/* Money */
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+input[type=number],input[type=text],input[type=date],select{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:9px 10px;min-width:0}
+.big{font-family:"Barlow Condensed",Arial,sans-serif;font-size:40px;font-weight:700;line-height:1}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td{padding:8px 4px;border-top:1px solid var(--line)}
+td.r{text-align:right;white-space:nowrap}
+.x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;padding:0 4px}
+.tablewrap{overflow-x:auto}
+@media (prefers-reduced-motion:no-preference){ .fade{animation:fade .25s ease-out} @keyframes fade{from{opacity:0}to{opacity:1}} }
+</style>
+</head>
+<body>
+<main id="app" class="fade"></main>
+<nav class="tabs" aria-label="Sections"><div class="inner" role="tablist">
+  <button role="tab" data-tab="today">Today</button>
+  <button role="tab" data-tab="route">Route</button>
+  <button role="tab" data-tab="book">To book</button>
+  <button role="tab" data-tab="words">Words</button>
+  <button role="tab" data-tab="money">Money</button>
+</div></nav>
+
+<script>
+/* ---------- Data from the itinerary ---------- */
+const CC = {DE:'de',PL:'pl',AT:'at',US:'us'};
+const g = q => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+const dir = (a,b) => 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(a) + '&destination=' + encodeURIComponent(b) + '&travelmode=transit';
+
+const DAYS = [
+ {n:1, c:'US', place:'In flight', title:'Los Angeles to Berlin', night:null,
+  plan:'Depart LAX in the evening. Time zones swallow this day, so sleep on the plane.',
+  legs:[{a:'Los Angeles (LAX)',b:'Berlin (BER)',mode:'Flight',dur:'13–15 hrs overnight',flight:true}],
+  sights:[], tips:['Download offline maps for Berlin and the DB Navigator app before you board.']},
+ {n:2, c:'DE', place:'Berlin', title:'Arrival day', night:'Berlin',
+  plan:'Arrive midday, rest and adjust. An easy first walk in the evening.',
+  legs:[{a:'BER Airport',b:'Berlin Hauptbahnhof',mode:'FEX Airport Express or S-Bahn',dur:'about 30–45 min'}],
+  sights:[{s:'Brandenburg Gate',q:'Brandenburg Gate Berlin'},{s:'Unter den Linden',q:'Unter den Linden Berlin'},{s:'Pariser Platz',q:'Pariser Platz Berlin'}],
+  tips:['BER airport is in fare zone C, so buy a Berlin ABC ticket (not AB) for the ride in, unless you already have a Deutschlandticket.']},
+ {n:3, c:'DE', place:'Berlin', title:'Museum Island and the Reichstag', night:'Berlin',
+  plan:'A full day in the centre.',
+  legs:[],
+  sights:[{s:'Pergamon Museum',q:'Pergamonmuseum Berlin',n:'Main hall partly closed for renovation. Check what is open.'},{s:'Neues Museum',q:'Neues Museum Berlin'},{s:'Reichstag Dome',q:'Reichstag Building Berlin',n:'Free, but you must register a time slot online.',book:true},{s:'Checkpoint Charlie',q:'Checkpoint Charlie Berlin'}],
+  tips:['Validate paper tickets in the small machines on the platform before boarding. Inspectors fine unvalidated tickets on the spot.']},
+ {n:4, c:'DE', place:'Potsdam', title:'Day trip to Potsdam', night:'Berlin',
+  plan:'Morning train to Potsdam, back to Berlin by evening.',
+  legs:[{a:'Berlin Hauptbahnhof',b:'Potsdam Hauptbahnhof',mode:'RE1 regional train or S7',dur:'about 45 min each way'}],
+  sights:[{s:'Sanssouci Palace and park',q:'Schloss Sanssouci Potsdam'},{s:'Cecilienhof',q:'Schloss Cecilienhof Potsdam'},{s:'East Side Gallery (evening)',q:'East Side Gallery Berlin'},{s:'Berlin Wall Memorial (evening)',q:'Berlin Wall Memorial Bernauer Strasse'}],
+  tips:['Potsdam is in zone C: use an ABC ticket or the Deutschlandticket.']},
+ {n:5, c:'DE', place:'Wittenberg and Leipzig', title:'Luther town, then on to Leipzig', night:'Leipzig',
+  plan:'Morning free in Berlin, train to Wittenberg for about two hours, then continue to Leipzig.',
+  legs:[{a:'Berlin Hauptbahnhof',b:'Lutherstadt Wittenberg Hbf',mode:'Train',dur:'1h45'},{a:'Lutherstadt Wittenberg Hbf',b:'Leipzig Hauptbahnhof',mode:'Train',dur:'39 min'}],
+  sights:[{s:'Castle Church (the 95 Theses door)',q:'Schlosskirche Wittenberg'}],
+  tips:['The station is signed "Lutherstadt Wittenberg", not just "Wittenberg". There is a different Wittenberge on the Hamburg line.','You are carrying your bags today. Check station lockers ahead of time or pack light.']},
+ {n:6, c:'DE', place:'Leipzig and Dresden', title:'Bach in the morning, Dresden by night', night:'Dresden',
+  plan:'Leipzig sights in the morning, afternoon train to Dresden.',
+  legs:[{a:'Leipzig Hauptbahnhof',b:'Dresden Hauptbahnhof',mode:'Train',dur:'1h15'}],
+  sights:[{s:'St. Thomas Church',q:'Thomaskirche Leipzig'},{s:'Bach Museum',q:'Bach-Museum Leipzig'},{s:'Monument to the Battle of the Nations',q:'Völkerschlachtdenkmal Leipzig'},{s:'Zwinger Palace',q:'Zwinger Dresden'},{s:'Frauenkirche after dark',q:'Frauenkirche Dresden'}],
+  tips:[]},
+ {n:7, c:'PL', from:'DE', place:'Wrocław and Kraków', title:'Border day into Poland', night:'Kraków',
+  plan:'The longest travel day. Dresden morning at leisure, train to Wrocław, walk the Rynek if the layover is 2+ hours, then on to Kraków.',
+  legs:[{a:'Dresden Hauptbahnhof',b:'Wrocław Główny',mode:'Train, crosses into Poland',dur:'3h40'},{a:'Wrocław Główny',b:'Kraków Główny',mode:'PKP Intercity',dur:'3h'}],
+  sights:[{s:'Brühl\u2019s Terrace, Dresden',q:'Brühlsche Terrasse Dresden'},{s:'Rynek, Wrocław (layover)',q:'Rynek Wrocław'}],
+  tips:['Currency changes to Polish złoty (PLN) today. Cards work almost everywhere; take a little cash from a bank ATM, and skip the Euronet machines.','The Deutschlandticket stops at the German border. This leg needs a proper international or Polish ticket.','Pack food and water for 7 hours of trains.']},
+ {n:8, c:'PL', place:'Kraków', title:'Old Town and Kazimierz', night:'Kraków',
+  plan:'Castle, cathedral, market square and the former Jewish district.',
+  legs:[],
+  sights:[{s:'Wawel Castle and Cathedral',q:'Wawel Castle Krakow'},{s:'Old Town Rynek',q:'Rynek Główny Kraków'},{s:'St. Mary\u2019s Basilica',q:'St. Mary\u2019s Basilica Krakow',n:'A trumpet call plays from the tower every hour.'},{s:'Kazimierz',q:'Kazimierz Krakow'}],
+  tips:['Validate tram and bus tickets in the machine on board ("skasuj bilet").']},
+ {n:9, c:'PL', place:'Kraków', title:'Auschwitz-Birkenau', night:'Kraków',
+  plan:'A full-day trip to the memorial and museum. An emotionally heavy day; keep the evening low-key.',
+  legs:[{a:'Kraków',b:'Auschwitz-Birkenau Memorial, Oświęcim',mode:'Bus or tour transfer',dur:'about 1.5 hrs each way'}],
+  sights:[{s:'Auschwitz I',q:'Auschwitz I Museum Oświęcim'},{s:'Birkenau',q:'Auschwitz II Birkenau'}],
+  tips:['Book the guided entry slot weeks ahead in high season.','Entry tickets are issued in your name, so bring your passport. Bags larger than a small purse are not allowed inside.']},
+ {n:10, c:'AT', from:'PL', place:'Vienna', title:'Border day into Austria', night:'Vienna',
+  plan:'Travel day. The line runs near Bratislava: stop there today, or save it as a half day from Vienna.',
+  legs:[{a:'Kraków Główny',b:'Wien Hauptbahnhof',mode:'Train',dur:'about 5h40'}],
+  sights:[{s:'Bratislava Old Town (optional)',q:'Bratislava Old Town'}],
+  tips:['Back to euros today.']},
+ {n:11, c:'AT', place:'Vienna', title:'Palaces and the Ringstrasse', night:'Vienna',
+  plan:'Imperial Vienna in one day.',
+  legs:[],
+  sights:[{s:'Schönbrunn Palace',q:'Schönbrunn Palace Vienna',n:'Buy timed tickets in advance.',book:true},{s:'St. Stephen\u2019s Cathedral',q:'St. Stephen\u2019s Cathedral Vienna',n:'Climb the south tower for the rooftop view.'},{s:'Hofburg',q:'Hofburg Vienna'},{s:'Ringstrasse walk',q:'Ringstraße Wien'}],
+  tips:['In Vienna you will hear "Grüß Gott" and "Servus" more than "Hallo".']},
+ {n:12, c:'DE', from:'AT', place:'Munich', title:'Vienna to Munich', night:'Munich',
+  plan:'Late-morning train to Munich.',
+  legs:[{a:'Wien Hauptbahnhof',b:'München Hauptbahnhof',mode:'ÖBB Railjet',dur:'4h30'}],
+  sights:[{s:'Mauthausen Memorial (only with real flexibility)',q:'Mauthausen Memorial'}],
+  tips:['Book this train early on oebb.at or bahn.de; saver fares climb as seats sell.']},
+ {n:13, c:'DE', place:'Munich', title:'Marienplatz and one big choice', night:'Munich',
+  plan:'Marienplatz and Nymphenburg, then pick one: Dachau Memorial or Neuschwanstein. Doing both needs a 15th day.',
+  legs:[], choice:true,
+  sights:[{s:'Marienplatz and the Glockenspiel',q:'Marienplatz Munich',n:'Shows at 11am and noon, plus 5pm March to October.'},{s:'Nymphenburg Palace',q:'Nymphenburg Palace Munich'}],
+  tips:[]},
+ {n:14, c:'DE', place:'Nuremberg', title:'Nuremberg, then home', night:null,
+  plan:'Morning train to Nuremberg, then an evening flight home. You land in LA the same calendar day.',
+  legs:[{a:'München Hauptbahnhof',b:'Nürnberg Hauptbahnhof',mode:'ICE or regional train',dur:'1h30'},{a:'Munich or Nuremberg airport',b:'Los Angeles (LAX)',mode:'Flight',dur:'13–15 hrs',flight:true}],
+  sights:[{s:'Nuremberg Castle',q:'Kaiserburg Nürnberg'},{s:'Documentation Center Nazi Party Rally Grounds',q:'Dokumentationszentrum Reichsparteitagsgelände Nürnberg',n:'Check current opening status before you go.'}],
+  tips:['Leave generous time for the airport. Plan luggage storage in Nuremberg or keep bags with you.']}
+];
+const CHOICE = {
+  dachau:{s:'Dachau Concentration Camp Memorial',q:'KZ-Gedenkstätte Dachau',n:'Half day, 25 min from Munich. Free entry; closed Mondays.',leg:{a:'München Hauptbahnhof',b:'KZ-Gedenkstätte Dachau',mode:'S2 to Dachau, then bus 726',dur:'about 45 min'}},
+  neu:{s:'Neuschwanstein Castle',q:'Neuschwanstein Castle',n:'Full day, about 2 hrs each way. Timed tickets sell out, so book ahead.',leg:{a:'München Hauptbahnhof',b:'Füssen',mode:'Regional train to Füssen, then bus to Hohenschwangau',dur:'about 2 hrs'}}
+};
+const STOPS = [['Berlin',2,'DE'],['Potsdam',4,'DE'],['Wittenberg',5,'DE'],['Leipzig',5,'DE'],['Dresden',6,'DE'],['Wrocław',7,'PL'],['Kraków',7,'PL'],['Vienna',10,'AT'],['Munich',12,'DE'],['Nuremberg',14,'DE']];
+
+const BOOK_DEFAULT = [
+ {id:'fl',t:'Flights LAX to Berlin, and Munich or Nuremberg to LAX',grp:'Travel'},
+ {id:'h1',t:'Hotel in Berlin (nights of days 2–4)',grp:'Stays'},
+ {id:'h2',t:'Hotel in Leipzig (day 5)',grp:'Stays'},
+ {id:'h3',t:'Hotel in Dresden (day 6)',grp:'Stays'},
+ {id:'h4',t:'Hotel in Kraków (days 7–9)',grp:'Stays'},
+ {id:'h5',t:'Hotel in Vienna (days 10–11)',grp:'Stays'},
+ {id:'h6',t:'Hotel in Munich (days 12–13)',grp:'Stays'},
+ {id:'t1',t:'Train Dresden to Wrocław to Kraków (day 7)',grp:'Trains',u:'https://www.intercity.pl/en/'},
+ {id:'t2',t:'Train Kraków to Vienna (day 10)',grp:'Trains',u:'https://www.oebb.at/en/'},
+ {id:'t3',t:'Train Vienna to Munich (day 12)',grp:'Trains',u:'https://www.oebb.at/en/'},
+ {id:'t4',t:'Deutschlandticket for German regional trains (optional)',grp:'Trains',u:'https://www.bahn.com/en/offers/regional/deutschland-ticket'},
+ {id:'s1',t:'Reichstag Dome time slot (day 3)',grp:'Tickets',u:'https://visite.bundestag.de/'},
+ {id:'s2',t:'Pergamon or Neues Museum tickets (day 3)',grp:'Tickets',u:'https://www.smb.museum/en/'},
+ {id:'s3',t:'Auschwitz-Birkenau guided entry (day 9), weeks ahead',grp:'Tickets',u:'https://visit.auschwitz.org/'},
+ {id:'s4',t:'Schönbrunn Palace timed ticket (day 11)',grp:'Tickets',u:'https://www.schoenbrunn.at/en/'},
+ {id:'s5',t:'Neuschwanstein ticket, if you pick it for day 13',grp:'Tickets',u:'https://www.hohenschwangau.de/en/'},
+ {id:'o1',t:'Travel insurance',grp:'Before you go'},
+ {id:'o2',t:'Tell your bank you are travelling; carry a no-foreign-fee card',grp:'Before you go'},
+ {id:'o3',t:'eSIM or roaming plan covering Germany, Poland and Austria',grp:'Before you go'}
+];
+
+const PHRASES = {
+ de:[
+  ['Hallo / Guten Tag','Hello','HAH-loh / GOO-ten tahk'],
+  ['Danke schön','Thank you very much','DAHN-keh shurn'],
+  ['Bitte','Please / You\u2019re welcome','BIT-teh'],
+  ['Entschuldigung','Excuse me / Sorry','ent-SHOOL-dee-goong'],
+  ['Sprechen Sie Englisch?','Do you speak English?','SHPREKH-en zee ENG-lish'],
+  ['Wo ist der Bahnhof?','Where is the train station?','voh ist dair BAHN-hohf'],
+  ['Von welchem Gleis fährt der Zug nach …?','Which platform does the train to … leave from?','fon VEL-khem glyce fairt dair tsook nahkh'],
+  ['Ist dieser Platz frei?','Is this seat free?','ist DEE-zer plahts fry'],
+  ['Einmal nach … bitte','One ticket to … please','INE-mahl nahkh … BIT-teh'],
+  ['Die Rechnung, bitte','The bill, please','dee REKH-noong BIT-teh'],
+  ['Zusammen oder getrennt?','Together or separate? (waiter asks)','tsoo-ZAH-men OH-der ge-TRENT'],
+  ['Kann ich mit Karte zahlen?','Can I pay by card?','kahn ikh mit KAR-teh TSAH-len'],
+  ['Stimmt so','Keep the change','shtimt zoh']
+ ],
+ pl:[
+  ['Dzień dobry','Hello / Good day','jen DOB-ri'],
+  ['Dziękuję','Thank you','jen-KOO-yeh'],
+  ['Proszę','Please / Here you go','PRO-sheh'],
+  ['Przepraszam','Excuse me / Sorry','psheh-PRA-sham'],
+  ['Czy mówi pan/pani po angielsku?','Do you speak English? (to a man / woman)','chi MOO-vee pahn/PAH-nee po an-GYEL-skoo'],
+  ['Gdzie jest dworzec?','Where is the station?','gjeh yest DVO-zhets'],
+  ['Z którego peronu?','From which platform?','s ktoo-REH-go peh-RO-noo'],
+  ['Jeden bilet do …','One ticket to …','YEH-den BEE-let do'],
+  ['Rachunek, proszę','The bill, please','ra-HOO-nek PRO-sheh'],
+  ['Czy mogę zapłacić kartą?','Can I pay by card?','chi MO-geh za-PWA-cheech KAR-tom'],
+  ['Na zdrowie','Cheers','nah ZDRO-vyeh']
+ ]
+};
+const SIGNS = [
+ ['Gleis','Platform / track','de'],['Abfahrt','Departure','de'],['Ankunft','Arrival','de'],['Ausgang','Exit','de'],
+ ['Umstieg','Change trains','de'],['Verspätung','Delay','de'],['Zugausfall','Train cancelled','de'],['Ersatzverkehr','Replacement bus','de'],
+ ['Hauptbahnhof (Hbf)','Main station','de'],['Fahrkarten','Tickets','de'],['Ruhebereich','Quiet zone','de'],['Geschlossen / Ruhetag','Closed / Closing day','de'],
+ ['Peron / Tor','Platform / Track','pl'],['Odjazdy','Departures','pl'],['Przyjazdy','Arrivals','pl'],['Wyjście','Exit','pl'],
+ ['Kasa biletowa','Ticket office','pl'],['Opóźnienie','Delay','pl'],['Damski ○ / Męski ▽','Women / Men (toilet doors)','pl'],['Główny','Main (station)','pl']
+];
+const COUNTRY_TIPS = {
+ DE:['Most shops and supermarkets close on Sundays. Stations and airports are the exception.','Cash is still common in bakeries and small restaurants. Keep €20–50 on you.','Bottles and cans carry a Pfand deposit (25¢ for single-use). Return them at supermarket machines.','Tipping: round up or add about 5–10% and say the total when you pay.'],
+ PL:['Money is the złoty (PLN), not the euro.','If a card machine offers to charge you in dollars, choose złoty. The conversion rate is better.','Tipping about 10% is normal in sit-down restaurants.'],
+ AT:['Tipping works like Germany: round up or add 5–10%.','Vienna trams 1 and 2 loop much of the Ringstrasse.','Sundays are quiet here too; most shops close.']
+};
+
+/* ---------- State ---------- */
+const KEY='railloop:v1';
+let S = {start:'',choice:'',done:{},custom:[],spend:[],rates:{EUR:1.15,PLN:0.27},lang:'de',tab:'today',peek:1};
+try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)); }catch(e){}
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function tripDay(){
+  if(!S.start) return null;
+  const s=new Date(S.start+'T00:00:00'); const t=new Date(); t.setHours(0,0,0,0);
+  return Math.round((t-s)/86400000)+1;
+}
+function dateFor(n){
+  if(!S.start) return '';
+  const d=new Date(S.start+'T00:00:00'); d.setDate(d.getDate()+n-1);
+  return d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+}
+function isSunday(n){ if(!S.start) return false; const d=new Date(S.start+'T00:00:00'); d.setDate(d.getDate()+n-1); return d.getDay()===0; }
+function isMonday(n){ if(!S.start) return false; const d=new Date(S.start+'T00:00:00'); d.setDate(d.getDate()+n-1); return d.getDay()===1; }
+const col = c => 'var(--'+CC[c]+')';
+const soft = c => c==='US'?'var(--line)':'var(--'+CC[c]+'-soft)';
+
+/* ---------- Route strip ---------- */
+function strip(cur){
+  const W=620,H=86,pad=24,step=(W-pad*2)/(STOPS.length-1);
+  let idx=-1; if(cur) STOPS.forEach((s,i)=>{ if(s[1]<=cur) idx=i; });
+  let segs='',dots='',labels='';
+  STOPS.forEach((s,i)=>{
+    const x=pad+i*step;
+    if(i<STOPS.length-1){
+      const x2=x+step; const c=STOPS[i+1][2]===s[2]?s[2]:STOPS[i+1][2];
+      segs+=`<line x1="${x}" y1="34" x2="${x2}" y2="34" stroke="${col(c)}" stroke-width="6" stroke-linecap="round" opacity="${idx>=0&&i>=idx?0.35:1}"/>`;
+    }
+    const here=i===idx;
+    dots+=`<circle cx="${x}" cy="34" r="${here?10:7}" fill="${here?'var(--signal)':'var(--card)'}" stroke="${col(s[2])}" stroke-width="4"/>`;
+    labels+=`<text x="${x}" y="${i%2?70:62}" text-anchor="middle" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="14" font-weight="${here?700:500}" fill="var(--ink)">${s[0]}</text>`;
+  });
+  return `<div class="strip" aria-label="Route progress"><svg viewBox="0 0 ${W} ${H}" role="img">${segs}${dots}${labels}</svg></div>`;
+}
+
+/* ---------- Day detail ---------- */
+function dayBody(d){
+  let legs=[...d.legs], sights=[...d.sights];
+  if(d.choice && S.choice){ sights.push(CHOICE[S.choice]); legs.push(CHOICE[S.choice].leg); }
+  let h='';
+  if(d.plan) h+=`<p style="margin:0 0 10px">${esc(d.plan)}</p>`;
+  if(isSunday(d.n)) h+=`<div class="note small">This day is a Sunday. Most shops will be closed; buy food and essentials the day before.</div>`;
+  if(d.choice){
+    h+=`<div class="panel" style="background:var(--paper)"><h2 style="font-size:19px">Pick one for this afternoon</h2><div class="seg" role="group" aria-label="Day 13 choice">
+      <button data-choice="dachau" aria-pressed="${S.choice==='dachau'}">Dachau Memorial</button>
+      <button data-choice="neu" aria-pressed="${S.choice==='neu'}">Neuschwanstein</button></div>
+      ${S.choice==='dachau'&&isMonday(13)?'<div class="note small">Day 13 falls on a Monday, when the Dachau Memorial is closed. Consider swapping.</div>':''}
+      ${S.choice?'':'<p class="small muted" style="margin:0">Your choice adds directions and a booking reminder.</p>'}</div>`;
+  }
+  if(legs.length){
+    h+=`<h3 class="cond" style="font-size:18px;margin:12px 0 2px">Getting there</h3>`;
+    legs.forEach(l=>{
+      h+=`<div class="leg"><div style="flex:1"><div class="t">${esc(l.a)} to ${esc(l.b)}</div><div class="small muted">${esc(l.mode)}, ${esc(l.dur)}</div>
+      ${l.flight?'':`<div class="btnrow"><a class="btn primary" target="_blank" rel="noopener" href="${dir(l.a,l.b)}">Directions</a><a class="btn" target="_blank" rel="noopener" href="https://int.bahn.de/en">Check times on bahn.de</a></div>`}</div></div>`;
+    });
+  }
+  if(sights.length){
+    h+=`<h3 class="cond" style="font-size:18px;margin:14px 0 8px">Sights</h3>`;
+    sights.forEach(s=>{
+      h+=`<div class="sight"><b>${esc(s.s)}</b>${s.book?'<span class="flag">Book ahead</span>':''}${s.n?`<div class="small muted">${esc(s.n)}</div>`:''}
+      <div class="btnrow"><a class="btn" target="_blank" rel="noopener" href="${g(s.q)}">Open in Maps</a></div></div>`;
+    });
+  }
+  if(d.tips.length){
+    h+=`<h3 class="cond" style="font-size:18px;margin:14px 0 4px">Worth knowing</h3>`;
+    d.tips.forEach(t=>h+=`<div class="note small">${esc(t)}</div>`);
+  }
+  if(d.night) h+=`<p class="small muted" style="margin:12px 0 0">Overnight in ${esc(d.night)}.</p>`;
+  return h;
+}
+
+/* ---------- Views ---------- */
+function vToday(){
+  const td=tripDay();
+  let h='';
+  if(!S.start){
+    h+=`<div class="hero"><h1>Your Berlin to Vienna loop</h1><p class="muted">14 days, 3 countries, one rail loop. Enter the day you fly out of LAX so the app can show the right day each morning.</p></div>
+    <div class="panel"><label for="sd" class="cond" style="font-size:19px">Departure date (Day 1)</label><div class="row" style="margin-top:8px"><input id="sd" type="date"><button class="btn primary" id="setd">Save date</button></div></div>`;
+    h+=strip(null);
+    h+=`<div class="panel"><h2>Preview: Day ${S.peek}</h2>${dayBody(DAYS[S.peek-1])}</div>`;
+    return h;
+  }
+  if(td<1){
+    h+=`<div class="hero"><div class="daynum">${1-td}<small>${1-td===1?'day':'days'} to go</small></div><h1>Berlin is waiting</h1><p class="date">You leave LAX ${esc(dateFor(1))}.</p></div>`;
+    h+=strip(null);
+    const done=BOOK_DEFAULT.concat(S.custom).filter(b=>S.done[b.id]).length, tot=BOOK_DEFAULT.length+S.custom.length;
+    h+=`<div class="panel"><h2>Bookings</h2><p style="margin:0">${done} of ${tot} done.</p><div class="progress"><i style="width:${tot?done/tot*100:0}%"></i></div><button class="btn" data-go="book">Open the list</button></div>`;
+    h+=`<div class="panel"><h2>Day 1</h2>${dayBody(DAYS[0])}</div>`;
+    return h;
+  }
+  if(td>14){
+    h+=`<div class="hero"><h1>Welcome home</h1><p class="muted">The trip ran ${esc(dateFor(1))} to ${esc(dateFor(14))}. Your spending log is still in the Money tab.</p></div>`+strip(14);
+    return h;
+  }
+  const d=DAYS[td-1];
+  h+=`<div class="hero"><div class="daynum">${td}<small>of 14</small></div><h1>${esc(d.title)}</h1><p class="date">${esc(dateFor(td))}, <span class="chip" style="--c:${col(d.c)};--soft:${soft(d.c)}">${esc(d.place)}</span></p></div>`;
+  h+=strip(td);
+  if(d.from && COUNTRY_TIPS[d.c]) h+=`<div class="panel"><h2>New country today</h2>${COUNTRY_TIPS[d.c].map(t=>`<div class="note small">${esc(t)}</div>`).join('')}</div>`;
+  h+=`<div class="panel">${dayBody(d)}</div>`;
+  if(td<14){ const n=DAYS[td]; h+=`<div class="panel"><h2>Tomorrow: ${esc(n.title)}</h2><p class="small muted" style="margin:0">${esc(n.plan)}</p></div>`; }
+  return h;
+}
+
+function vRoute(){
+  const td=tripDay();
+  let h=`<h1 style="font-size:36px;margin:4px 0 4px">The route</h1><p class="muted" style="margin:0 0 18px">Tap a day to see trains, sights and directions.</p><div class="line">`;
+  DAYS.forEach(d=>{
+    h+=`<div class="stop ${td===d.n?'now':''}" style="--c:${col(d.c)};--soft:${soft(d.c)}"><details ${td===d.n?'open':''}><summary><span class="dn">${d.n}</span><span class="st"><h3>${esc(d.title)}</h3><span class="small muted">${S.start?esc(dateFor(d.n))+', ':''}${d.legs.length?esc(d.legs.map(l=>l.dur).join(' + ')):'No long transfers'}</span></span></summary><div class="body">${dayBody(d)}</div></details></div>`;
+  });
+  h+=`</div><div class="panel" style="margin-top:18px"><h2>Trip settings</h2><label for="sd2" class="small muted">Departure date (Day 1)</label><div class="row" style="margin-top:6px"><input id="sd2" type="date" value="${esc(S.start)}"><button class="btn" id="setd2">Update</button></div></div>`;
+  return h;
+}
+
+function vBook(){
+  const all=BOOK_DEFAULT.concat(S.custom);
+  const done=all.filter(b=>S.done[b.id]).length;
+  let h=`<h1 style="font-size:36px;margin:4px 0 4px">To book</h1><p class="muted" style="margin:0">${done} of ${all.length} done</p><div class="progress" style="margin-bottom:16px"><i style="width:${all.length?done/all.length*100:0}%"></i></div>`;
+  const groups=[...new Set(all.map(b=>b.grp))];
+  groups.forEach(gp=>{
+    h+=`<div class="panel"><h2>${esc(gp)}</h2>`;
+    all.filter(b=>b.grp===gp).forEach(b=>{
+      h+=`<div class="check ${S.done[b.id]?'done':''}"><input type="checkbox" id="c_${b.id}" data-check="${b.id}" ${S.done[b.id]?'checked':''}><div style="flex:1"><label for="c_${b.id}" class="lbl">${esc(b.t)}</label>${b.u?`<div><a class="small" target="_blank" rel="noopener" href="${esc(b.u)}">Booking site</a></div>`:''}</div>${b.custom?`<button class="x" aria-label="Remove" data-rmc="${b.id}">×</button>`:''}</div>`;
+    });
+    h+=`</div>`;
+  });
+  h+=`<div class="panel"><h2>Add your own</h2><div class="row"><input id="newb" type="text" placeholder="e.g. Bratislava day trip tickets" style="flex:1"><button class="btn primary" id="addb">Add</button></div></div>`;
+  return h;
+}
+
+function vWords(){
+  const L=S.lang;
+  let h=`<h1 style="font-size:36px;margin:4px 0 12px">Words</h1><div class="seg" role="group" aria-label="Language">
+   <button data-lang="de" aria-pressed="${L==='de'}">German</button><button data-lang="pl" aria-pressed="${L==='pl'}">Polish (days 7–10)</button><button data-lang="signs" aria-pressed="${L==='signs'}">Signs</button></div>`;
+  if(L==='signs'){
+    h+=`<p class="muted small" style="margin-top:0">What you will see at stations and shop doors. Blue is German, red is Polish.</p><div class="signs">${SIGNS.map(s=>`<div class="sign ${s[2]==='pl'?'pl':''}"><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`).join('')}</div>`;
+    h+=`<div class="panel" style="margin-top:14px"><h2>Country tips</h2>${['DE','PL','AT'].map(c=>`<h3 class="cond" style="font-size:18px;margin:10px 0 4px;color:${col(c)}">${{DE:'Germany',PL:'Poland',AT:'Austria'}[c]}</h3>${COUNTRY_TIPS[c].map(t=>`<div class="note small">${esc(t)}</div>`).join('')}`).join('')}</div>`;
+  } else {
+    h+=`<div class="panel">${PHRASES[L].map(p=>`<div class="phr"><div class="src">${esc(p[0])}</div><div>${esc(p[1])}</div><div class="say">${esc(p[2])}</div></div>`).join('')}</div>`;
+    if(L==='de') h+=`<p class="small muted">In Austria and Bavaria, "Grüß Gott" (hello) and "Servus" (hi / bye) are everywhere.</p>`;
+  }
+  return h;
+}
+
+function vMoney(){
+  const r=S.rates;
+  const toUSD=(a,c)=>c==='USD'?a:a*(r[c]||0);
+  const byC={DE:0,PL:0,AT:0,other:0}; let total=0;
+  S.spend.forEach(x=>{const u=toUSD(+x.a,x.c); total+=u; byC[x.k||'other']=(byC[x.k||'other']||0)+u;});
+  let h=`<h1 style="font-size:36px;margin:4px 0 12px">Money</h1>
+  <div class="panel"><h2>Quick convert</h2><div class="row"><input id="cvA" type="number" inputmode="decimal" value="10" style="width:110px" aria-label="Amount"><select id="cvC" aria-label="Currency"><option value="EUR">EUR €</option><option value="PLN">PLN zł</option></select><span class="big" id="cvOut"></span></div>
+  <p class="small muted">Germany and Austria use euros. Poland (days 7–10) uses złoty.</p>
+  <details><summary class="small">Edit exchange rates</summary><div class="row" style="margin-top:8px"><label class="small">1 EUR = $<input id="rE" type="number" step="0.01" value="${r.EUR}" style="width:80px"></label><label class="small">1 PLN = $<input id="rP" type="number" step="0.01" value="${r.PLN}" style="width:80px"></label><button class="btn" id="saveR">Save rates</button></div><p class="small muted">These are set by hand, so update them with today's rate from your bank.</p></details></div>
+  <div class="panel"><h2>Spending</h2><div class="big">$${total.toFixed(0)}</div><p class="small muted" style="margin:4px 0 12px">Germany $${byC.DE.toFixed(0)}, Poland $${byC.PL.toFixed(0)}, Austria $${byC.AT.toFixed(0)}</p>
+  <div class="row"><input id="spN" type="text" placeholder="What" style="flex:2;min-width:120px"><input id="spA" type="number" inputmode="decimal" placeholder="Amount" style="width:100px"><select id="spC"><option>EUR</option><option>PLN</option><option>USD</option></select><button class="btn primary" id="addS">Add</button></div>
+  ${S.spend.length?`<div class="tablewrap"><table style="margin-top:12px">${S.spend.slice().reverse().map(x=>`<tr><td>${esc(x.n)}<div class="small muted">Day ${x.d||'–'}</div></td><td class="r">${esc((+x.a).toFixed(2))} ${esc(x.c)}<div class="small muted">$${toUSD(+x.a,x.c).toFixed(2)}</div></td><td class="r"><button class="x" aria-label="Delete" data-rms="${x.id}">×</button></td></tr>`).join('')}</table></div>`:'<p class="small muted">No spending logged yet. Add your first coffee.</p>'}
+  </div>`;
+  return h;
+}
+
+/* ---------- Render + events ---------- */
+const VIEWS={today:vToday,route:vRoute,book:vBook,words:vWords,money:vMoney};
+function render(){
+  const app=document.getElementById('app');
+  app.innerHTML=VIEWS[S.tab]();
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===S.tab));
+  if(S.tab==='money') convert();
+}
+function convert(){
+  const a=+document.getElementById('cvA').value||0, c=document.getElementById('cvC').value;
+  document.getElementById('cvOut').textContent='$'+(a*S.rates[c]).toFixed(2);
+}
+function curCountry(){ const t=tripDay(); if(!t||t<1||t>14) return 'other'; const d=DAYS[t-1]; return d.c==='US'?'other':d.c; }
+
+document.querySelector('nav.tabs').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-tab]'); if(!b) return;
+  S.tab=b.dataset.tab; save(); render(); window.scrollTo(0,0);
+});
+document.getElementById('app').addEventListener('click',e=>{
+  const t=e.target;
+  if(t.id==='setd'||t.id==='setd2'){ const v=document.getElementById(t.id==='setd'?'sd':'sd2').value; if(v){S.start=v;save();render();} }
+  if(t.dataset.go){ S.tab=t.dataset.go; save(); render(); window.scrollTo(0,0); }
+  if(t.dataset.choice){ S.choice=S.choice===t.dataset.choice?'':t.dataset.choice; save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
+  if(t.dataset.lang){ S.lang=t.dataset.lang; save(); render(); }
+  if(t.dataset.rmc){ S.custom=S.custom.filter(b=>b.id!==t.dataset.rmc); delete S.done[t.dataset.rmc]; save(); render(); }
+  if(t.id==='addb'){ const v=document.getElementById('newb').value.trim(); if(v){ S.custom.push({id:'u'+Date.now(),t:v,grp:'Your additions',custom:true}); save(); render(); } }
+  if(t.id==='saveR'){ const e1=+document.getElementById('rE').value, p1=+document.getElementById('rP').value; if(e1>0)S.rates.EUR=e1; if(p1>0)S.rates.PLN=p1; save(); render(); }
+  if(t.id==='addS'){
+    const n=document.getElementById('spN').value.trim()||'Expense', a=parseFloat(document.getElementById('spA').value), c=document.getElementById('spC').value;
+    if(a>0){ const td=tripDay(); S.spend.push({id:'s'+Date.now(),n,a,c,k:curCountry(),d:(td>=1&&td<=14)?td:''}); save(); render(); }
+  }
+  if(t.dataset.rms){ S.spend=S.spend.filter(x=>x.id!==t.dataset.rms); save(); render(); }
+});
+document.getElementById('app').addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset.check){ S.done[t.dataset.check]=t.checked; save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
+  if(t.id==='spC'){ /* keep selection */ }
+});
+document.getElementById('app').addEventListener('input',e=>{ if(e.target.id==='cvA'||e.target.id==='cvC') convert(); });
+document.getElementById('app').addEventListener('change',e=>{ if(e.target.id==='cvC') convert(); });
+render();
+
+/* ---------- Installed-app behaviour ---------- */
+// The app stays suspended in the background for days, so roll over to the new day when it is reopened.
+let shownDay=tripDay();
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible') return;
+  const now=tripDay(); if(now!==shownDay){ shownDay=now; render(); }
+});
+if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+// Ask iOS not to clear the saved checklist and spending log.
+if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+</script>
+</body>
+</html>
