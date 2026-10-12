@@ -1,6 +1,6 @@
 /* Offline support: everything the app needs is cached on first load.
    Bump VERSION whenever any file changes so phones pick up the update. */
-const VERSION = 'railloop-v5';
+const VERSION = 'railloop-v6';
 // Street map tiles are saved as you view them, so places you looked at on wifi still show with no signal.
 const TILES = 'railloop-tiles';
 const TILE_HOST = 'tile.openstreetmap.org';

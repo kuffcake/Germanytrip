@@ -104,6 +104,13 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--si
 .stop .st{flex:1}
 .stop .st h3{font-size:20px}
 .stop .body{padding:0 14px 14px}
+.tl{border-left:4px solid var(--c);padding:8px 0 8px 12px;margin-top:10px}
+.tl.pass{border-left-style:dotted;padding-top:2px;padding-bottom:2px}
+.tl.here{background:var(--soft);border-radius:0 8px 8px 0}
+.tlh{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tlh b{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;font-size:20px;font-weight:600}
+.tlbar{height:6px;background:var(--line);border-radius:3px;margin:5px 0;overflow:hidden}
+.tlbar i{display:block;height:100%;background:var(--c)}
 .chip{display:inline-block;font-size:13px;padding:1px 8px;border-radius:6px;background:var(--soft,var(--de-soft));color:var(--c,var(--de));font-weight:600}
 
 /* Map tab: fills the screen between the header and the tab bar */
@@ -202,82 +209,124 @@ const CC = {DE:'de',PL:'pl',AT:'at',US:'us'};
 const g = q => 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
 const dir = (a,b) => 'https://www.google.com/maps/dir/?api=1&origin=' + encodeURIComponent(a) + '&destination=' + encodeURIComponent(b) + '&travelmode=transit';
 
+/* Flights as booked: out Sat Apr 24 2027, back Tue May 11 2027. Day 1 is the departure date. */
+const TRIP_START = '2027-04-24';
+const FLIGHTS = [
+ {t:'Outbound: Los Angeles to Berlin',d:1,segs:[
+   {no:'Delta 28',a:'Los Angeles (LAX)',b:'Paris (CDG)',dep:'Sat Apr 24, 6:05pm',arr:'Sun Apr 25, 1:50pm',dur:'10h45',seat:'Seats 39G, 39H'},
+   {lay:'1h55 layover in Paris'},
+   {no:'Delta 8414, operated by Air France',a:'Paris (CDG)',b:'Berlin (BER)',dep:'Sun Apr 25, 3:45pm',arr:'Sun Apr 25, 5:30pm',dur:'1h45',seat:'No seats picked yet'}]},
+ {t:'Return: Nuremberg to Los Angeles',d:18,segs:[
+   {no:'Delta 8297, operated by Air France',a:'Nuremberg (NUE)',b:'Paris (CDG)',dep:'Tue May 11, 11:00am',arr:'Tue May 11, 12:35pm',dur:'1h35',seat:'No seats picked yet'},
+   {lay:'3h25 layover in Paris'},
+   {no:'Delta 29',a:'Paris (CDG)',b:'Los Angeles (LAX)',dep:'Tue May 11, 4:00pm',arr:'Tue May 11, 6:35pm',dur:'11h35',seat:'Seats 42G, 42H'}]}
+];
+
 const DAYS = [
- {n:1, c:'US', place:'In flight', title:'Los Angeles to Berlin', night:null,
-  plan:'Depart LAX in the evening. Time zones swallow this day, so sleep on the plane.',
-  legs:[{a:'Los Angeles (LAX)',b:'Berlin (BER)',mode:'Flight',dur:'13–15 hrs overnight',flight:true}],
-  sights:[], tips:['Download offline maps for Berlin and the DB Navigator app before you board.']},
- {n:2, c:'DE', place:'Berlin', title:'Arrival day', night:'Berlin',
-  plan:'Arrive midday, rest and adjust. An easy first walk in the evening.',
-  legs:[{a:'BER Airport',b:'Berlin Hauptbahnhof',mode:'FEX Airport Express or S-Bahn',dur:'about 30–45 min'}],
-  sights:[{s:'Brandenburg Gate',q:'Brandenburg Gate Berlin',n:'Free to visit.'},{s:'Unter den Linden',q:'Unter den Linden Berlin'},{s:'Pariser Platz',q:'Pariser Platz Berlin'}],
-  tips:['BER airport is in fare zone C, so buy a Berlin ABC ticket (not AB) for the ride in, unless you already have a Deutschlandticket.']},
- {n:3, c:'DE', place:'Berlin', title:'Museum Island and the Reichstag', night:'Berlin',
-  plan:'A full day in the centre.',
+ {n:1, c:'US', place:'In flight', title:'Los Angeles to Paris, overnight', night:null,
+  plan:'Delta 28 leaves LAX at 6:05pm. Time zones swallow the night, so sleep on the plane.',
+  legs:[{a:'Los Angeles (LAX)',b:'Paris (CDG)',mode:'Delta 28',dur:'10h45',when:'Departs 6:05pm Saturday, lands 1:50pm Sunday, Paris time. Seats 39G and 39H.',flight:true}],
+  sights:[], tips:['Download offline maps for Berlin and the DB Navigator app before you board.','Be at LAX by about 3pm for an international departure.']},
+ {n:2, c:'DE', place:'Berlin', title:'Paris connection, Berlin by evening', night:'Berlin',
+  plan:'Land in Paris at 1:50pm, connect to Berlin at 3:45pm and land at 5:30pm. You reach the hotel around 7pm, so tonight is dinner and sleep. The sightseeing starts tomorrow.',
+  legs:[{a:'Paris (CDG)',b:'Berlin (BER)',mode:'Delta 8414, operated by Air France',dur:'1h45',when:'Departs 3:45pm, lands 5:30pm.',flight:true},{a:'BER Airport',b:'Berlin Hauptbahnhof',mode:'FEX Airport Express or S-Bahn',dur:'about 30–45 min'}],
+  sights:[],
+  tips:['The Paris connection is 1h55 and includes EU passport control. Go straight to your gate; do not stop to shop.','BER airport is in fare zone C, so buy a Berlin ABC ticket (not AB) for the ride in, unless you already have a Deutschlandticket.','Supermarkets are closed on Sunday. The shops inside Berlin Hauptbahnhof stay open if you need water or snacks.']},
+ {n:3, c:'DE', place:'Berlin', title:'Reichstag, the Gate and the Wall', night:'Berlin',
+  plan:'Most Berlin museums close on Mondays, so today is the outdoor and history day. Start at the Reichstag, walk through the Gate and down Unter den Linden, then follow the Wall.',
   legs:[],
-  sights:[{s:'Pergamon Museum',q:'Pergamonmuseum Berlin',n:'Main hall partly closed for renovation. Check what is open.'},{s:'Neues Museum',q:'Neues Museum Berlin'},{s:'Reichstag Dome',q:'Reichstag Building Berlin',n:'Free, but you must register a time slot online.',book:true},{s:'Checkpoint Charlie',q:'Checkpoint Charlie Berlin'}],
+  sights:[{s:'Reichstag Dome',q:'Reichstag Building Berlin',n:'Free, but you must register a time slot online.',book:true},{s:'Brandenburg Gate',q:'Brandenburg Gate Berlin',n:'Free to visit.'},{s:'Pariser Platz',q:'Pariser Platz Berlin'},{s:'Unter den Linden',q:'Unter den Linden Berlin'},{s:'Checkpoint Charlie',q:'Checkpoint Charlie Berlin'},{s:'Berlin Wall Memorial',q:'Berlin Wall Memorial Bernauer Strasse',n:'The outdoor memorial is open every day.'},{s:'East Side Gallery (evening)',q:'East Side Gallery Berlin',n:'The longest surviving stretch of the Berlin Wall, now open-air murals.'}],
   tips:['Validate paper tickets in the small machines on the platform before boarding. Inspectors fine unvalidated tickets on the spot.']},
- {n:4, c:'DE', place:'Potsdam', title:'Day trip to Potsdam', night:'Berlin',
-  plan:'Morning train to Potsdam, back to Berlin by evening.',
+ {n:4, c:'DE', place:'Berlin', title:'Museum Island', night:'Berlin',
+  plan:'A full museum day, with the late afternoon free for whatever you missed yesterday.',
+  legs:[],
+  sights:[{s:'Pergamon Museum',q:'Pergamonmuseum Berlin',n:'Main hall partly closed for renovation. Check what is open.'},{s:'Neues Museum',q:'Neues Museum Berlin'}],
+  tips:[]},
+ {n:5, c:'DE', place:'Potsdam', title:'Day trip to Potsdam', night:'Berlin',
+  plan:'Morning train to Potsdam, back to Berlin by evening. Last night in Berlin, so pack tonight.',
   legs:[{a:'Berlin Hauptbahnhof',b:'Potsdam Hauptbahnhof',mode:'RE1 regional train or S7',dur:'about 45 min each way'}],
-  sights:[{s:'Sanssouci Palace and park',q:'Schloss Sanssouci Potsdam',n:'Frederick the Great’s summer palace.'},{s:'Cecilienhof',q:'Schloss Cecilienhof Potsdam'},{s:'East Side Gallery (evening)',q:'East Side Gallery Berlin',n:'The longest surviving stretch of the Berlin Wall, now open-air murals.'},{s:'Berlin Wall Memorial (evening)',q:'Berlin Wall Memorial Bernauer Strasse'}],
+  sights:[{s:'Sanssouci Palace and park',q:'Schloss Sanssouci Potsdam',n:'Frederick the Great’s summer palace.'},{s:'Cecilienhof',q:'Schloss Cecilienhof Potsdam'}],
   tips:['Potsdam is in zone C: use an ABC ticket or the Deutschlandticket.']},
- {n:5, c:'DE', place:'Wittenberg and Leipzig', title:'Luther town, then on to Leipzig', night:'Leipzig',
+ {n:6, c:'DE', place:'Wittenberg and Leipzig', title:'Luther town, then on to Leipzig', night:'Leipzig',
   plan:'Morning free in Berlin, train to Wittenberg for about two hours, then continue to Leipzig.',
   legs:[{a:'Berlin Hauptbahnhof',b:'Lutherstadt Wittenberg Hbf',mode:'Train',dur:'1h45'},{a:'Lutherstadt Wittenberg Hbf',b:'Leipzig Hauptbahnhof',mode:'Train',dur:'39 min'}],
   sights:[{s:'Castle Church (the 95 Theses door)',q:'Schlosskirche Wittenberg',n:'Where Luther posted the 95 Theses. The old town is UNESCO-listed.'}],
   tips:['The station is signed "Lutherstadt Wittenberg", not just "Wittenberg". There is a different Wittenberge on the Hamburg line.','You are carrying your bags today. Check station lockers ahead of time or pack light.']},
- {n:6, c:'DE', place:'Leipzig and Dresden', title:'Bach in the morning, Dresden by night', night:'Dresden',
-  plan:'Leipzig sights in the morning, afternoon train to Dresden.',
+ {n:7, c:'DE', place:'Leipzig and Dresden', title:'Bach in the morning, Dresden by night', night:'Dresden',
+  plan:'Leipzig sights in the morning, early-afternoon train to Dresden. Tomorrow is a long train day, so see Dresden this afternoon and evening.',
   legs:[{a:'Leipzig Hauptbahnhof',b:'Dresden Hauptbahnhof',mode:'Train',dur:'1h15'}],
   sights:[{s:'St. Thomas Church',q:'Thomaskirche Leipzig',n:'Bach was cantor here for 27 years.'},{s:'Bach Museum',q:'Bach-Museum Leipzig',n:'Next door to St. Thomas Church.'},{s:'Monument to the Battle of the Nations',q:'Völkerschlachtdenkmal Leipzig'},{s:'Zwinger Palace',q:'Zwinger Dresden'},{s:'Frauenkirche after dark',q:'Frauenkirche Dresden'}],
-  tips:[]},
- {n:7, c:'PL', from:'DE', place:'Wrocław and Kraków', title:'Border day into Poland', night:'Kraków',
-  plan:'The longest travel day. Dresden morning at leisure, train to Wrocław, walk the Rynek if the layover is 2+ hours, then on to Kraków.',
+  tips:['Tomorrow, May 1, is a public holiday in Germany and Poland, and shops stay shut through Monday in Poland. Buy food and anything you need today.']},
+ {n:8, c:'PL', from:'DE', place:'Wrocław and Kraków', title:'Border day into Poland', night:'Kraków',
+  plan:'The longest travel day. A short Dresden morning, train to Wrocław, walk the Rynek if the layover is 2+ hours, then on to Kraków.',
   legs:[{a:'Dresden Hauptbahnhof',b:'Wrocław Główny',mode:'Train, crosses into Poland',dur:'3h40'},{a:'Wrocław Główny',b:'Kraków Główny',mode:'PKP Intercity',dur:'3h'}],
-  sights:[{s:'Brühl\u2019s Terrace, Dresden',q:'Brühlsche Terrasse Dresden'},{s:'Rynek, Wrocław (layover)',q:'Rynek Wrocław',n:'The colorful market square. Worth it only if your layover is 2+ hours.'}],
-  tips:['Currency changes to Polish złoty (PLN) today. Cards work almost everywhere; take a little cash from a bank ATM, and skip the Euronet machines.','The Deutschlandticket stops at the German border. This leg needs a proper international or Polish ticket.','Pack food and water for 7 hours of trains.']},
- {n:8, c:'PL', place:'Kraków', title:'Old Town and Kazimierz', night:'Kraków',
+  sights:[{s:'Brühl’s Terrace, Dresden',q:'Brühlsche Terrasse Dresden'},{s:'Rynek, Wrocław (layover)',q:'Rynek Wrocław',n:'The colorful market square. Worth it only if your layover is 2+ hours.'}],
+  tips:['Today is May 1, a public holiday in both countries and the start of the Polish long weekend. Trains run but fill up, so book seats well ahead.','Currency changes to Polish złoty (PLN) today. Cards work almost everywhere; take a little cash from a bank ATM, and skip the Euronet machines.','The Deutschlandticket stops at the German border. This leg needs a proper international or Polish ticket.','Pack food and water for 7 hours of trains.']},
+ {n:9, c:'PL', place:'Kraków', title:'Old Town and Kazimierz', night:'Kraków',
   plan:'Castle, cathedral, market square and the former Jewish district.',
   legs:[],
-  sights:[{s:'Wawel Castle and Cathedral',q:'Wawel Castle Krakow',n:'Seat of Polish kings for centuries.'},{s:'Old Town Rynek',q:'Rynek Główny Kraków'},{s:'St. Mary\u2019s Basilica',q:'St. Mary\u2019s Basilica Krakow',n:'A trumpet call plays from the tower every hour.'},{s:'Kazimierz',q:'Kazimierz Krakow'}],
-  tips:['Validate tram and bus tickets in the machine on board ("skasuj bilet").']},
- {n:9, c:'PL', place:'Kraków', title:'Auschwitz-Birkenau', night:'Kraków',
+  sights:[{s:'Wawel Castle and Cathedral',q:'Wawel Castle Krakow',n:'Seat of Polish kings for centuries.'},{s:'Old Town Rynek',q:'Rynek Główny Kraków'},{s:'St. Mary’s Basilica',q:'St. Mary’s Basilica Krakow',n:'A trumpet call plays from the tower every hour.'},{s:'Kazimierz',q:'Kazimierz Krakow'}],
+  tips:['Validate tram and bus tickets in the machine on board ("skasuj bilet").','It is the long weekend, so Kraków will be busy. Reserve Wawel tickets and dinner ahead.']},
+ {n:10, c:'PL', place:'Kraków', title:'Auschwitz-Birkenau', night:'Kraków',
   plan:'A full-day trip to the memorial and museum. An emotionally heavy day; keep the evening low-key.',
   legs:[{a:'Kraków',b:'Auschwitz-Birkenau Memorial, Oświęcim',mode:'Bus or tour transfer',dur:'about 1.5 hrs each way'}],
   sights:[{s:'Auschwitz I',q:'Auschwitz I Museum Oświęcim'},{s:'Birkenau',q:'Auschwitz II Birkenau'}],
-  tips:['Book the guided entry slot weeks ahead in high season.','Entry tickets are issued in your name, so bring your passport. Bags larger than a small purse are not allowed inside.']},
- {n:10, c:'AT', from:'PL', place:'Vienna', title:'Border day into Austria', night:'Vienna',
-  plan:'Travel day. The line runs near Bratislava: stop there today, or save it as a half day from Vienna.',
+  tips:['Today is May 3, Constitution Day in Poland. The memorial is normally open, but entry slots on a holiday go early: book as soon as dates are released and check the opening hours when you do.','Entry tickets are issued in your name, so bring your passport. Bags larger than a small purse are not allowed inside.']},
+ {n:11, c:'AT', from:'PL', place:'Vienna', title:'Border day into Austria', night:'Vienna',
+  plan:'Morning train to Vienna, arriving mid-afternoon. Spend the evening in the old centre around the cathedral.',
   legs:[{a:'Kraków Główny',b:'Wien Hauptbahnhof',mode:'Train',dur:'about 5h40'}],
-  sights:[{s:'Bratislava Old Town (optional)',q:'Bratislava Old Town',n:'About 1 hr from Vienna. The easiest extra country on the trip: Slovakia, almost on the direct rail line.'}],
+  sights:[{s:'St. Stephen’s Cathedral',q:'St. Stephen’s Cathedral Vienna',n:'Climb the south tower for the rooftop view.'},{s:'Bratislava Old Town (optional)',q:'Bratislava Old Town',n:'About 1 hr from Vienna. The easiest extra country on the trip: Slovakia, almost on the direct rail line. It costs you the Vienna evening.'}],
   tips:['Back to euros today.']},
- {n:11, c:'AT', place:'Vienna', title:'Palaces and the Ringstrasse', night:'Vienna',
-  plan:'Imperial Vienna in one day.',
+ {n:12, c:'AT', place:'Vienna', title:'Palaces and the Ringstrasse', night:'Vienna',
+  plan:'Your one full Vienna day. Schönbrunn in the morning, the Hofburg and the Ringstrasse in the afternoon.',
   legs:[],
-  sights:[{s:'Schönbrunn Palace',q:'Schönbrunn Palace Vienna',n:'Buy timed tickets in advance.',book:true},{s:'St. Stephen\u2019s Cathedral',q:'St. Stephen\u2019s Cathedral Vienna',n:'Climb the south tower for the rooftop view.'},{s:'Hofburg',q:'Hofburg Vienna'},{s:'Ringstrasse walk',q:'Ringstraße Wien'}],
-  tips:['In Vienna you will hear "Grüß Gott" and "Servus" more than "Hallo".']},
- {n:12, c:'DE', from:'AT', place:'Munich', title:'Vienna to Munich', night:'Munich',
-  plan:'Late-morning train to Munich.',
+  sights:[{s:'Schönbrunn Palace',q:'Schönbrunn Palace Vienna',n:'Buy timed tickets in advance.',book:true},{s:'Hofburg',q:'Hofburg Vienna'},{s:'Ringstrasse walk',q:'Ringstraße Wien'}],
+  tips:['In Vienna you will hear "Grüß Gott" and "Servus" more than "Hallo".','Tomorrow is a public holiday (Ascension Day) and shops will be closed. Buy train snacks today.']},
+ {n:13, c:'DE', from:'AT', place:'Vienna and Munich', title:'Vienna morning, Munich by night', night:'Munich',
+  plan:'Leave your bags at the hotel, spend the morning at the Belvedere, then take a mid-afternoon train so you reach Munich around 8pm. You need to be in Munich tonight for tomorrow’s castle trip.',
   legs:[{a:'Wien Hauptbahnhof',b:'München Hauptbahnhof',mode:'ÖBB Railjet',dur:'4h30'}],
-  sights:[{s:'Mauthausen Memorial (only with real flexibility)',q:'Mauthausen Memorial',n:'Near Linz, on the Vienna to Munich line. A former concentration camp, similar in tone to Dachau and Auschwitz. Adds a half day.'}],
-  tips:['Book this train early on oebb.at or bahn.de; saver fares climb as seats sell.']},
- {n:13, c:'DE', place:'Munich', title:'Marienplatz and one big choice', night:'Munich',
-  plan:'Marienplatz and Nymphenburg, then pick one: Dachau Memorial or Neuschwanstein. Doing both needs a 15th day.',
-  legs:[], choice:true,
-  sights:[{s:'Marienplatz and the Glockenspiel',q:'Marienplatz Munich',n:'Shows at 11am and noon, plus 5pm March to October.'},{s:'Nymphenburg Palace',q:'Nymphenburg Palace Munich',n:'Summer residence of the Bavarian royals. Reach it by tram.'}],
-  tips:[]},
- {n:14, c:'DE', place:'Nuremberg', title:'Nuremberg, then home', night:null,
-  plan:'Morning train to Nuremberg, then an evening flight home. You land in LA the same calendar day.',
-  legs:[{a:'München Hauptbahnhof',b:'Nürnberg Hauptbahnhof',mode:'ICE or regional train',dur:'1h30'},{a:'Munich or Nuremberg airport',b:'Los Angeles (LAX)',mode:'Flight',dur:'13–15 hrs',flight:true}],
+  sights:[{s:'Belvedere Palace',q:'Belvedere Palace Vienna',n:'Home of Klimt’s "The Kiss". A 15-minute walk from the main station.'},{s:'Mauthausen Memorial (only with real flexibility)',q:'Mauthausen Memorial',n:'Near Linz, on the Vienna to Munich line. A former concentration camp, similar in tone to Dachau and Auschwitz. It replaces the Vienna morning.'}],
+  tips:['Today is Ascension Day, a public holiday in Austria and Bavaria. Shops are closed and trains are busy, so reserve seats.','Book this train early on oebb.at or bahn.de; saver fares climb as seats sell.']},
+ {n:14, c:'DE', place:'Munich', title:'Neuschwanstein Castle', night:'Munich',
+  plan:'A full day out. Take a train around 8am, tour the castle around midday, and be back in Munich by about 7pm.',
+  legs:[{a:'München Hauptbahnhof',b:'Füssen',mode:'Regional train',dur:'about 2 hrs each way'},{a:'Füssen',b:'Hohenschwangau',mode:'Bus 73 or 78',dur:'10 min'}],
+  sights:[{s:'Neuschwanstein Castle',q:'Neuschwanstein Castle',n:'Entry is by timed tour only. From the ticket centre it is a 30–40 minute uphill walk, so pick a tour time at least 90 minutes after your train arrives in Füssen.',book:true},{s:'Marienbrücke',q:'Marienbrücke Schwangau',n:'The bridge with the classic view of the castle. It can close in bad weather.'}],
+  tips:['This Friday falls between a public holiday and the weekend, so it will be one of the busiest days of the spring. Book the castle tickets as soon as you can.','The Bayern-Ticket or a Deutschlandticket covers the train and the bus.']},
+ {n:15, c:'DE', place:'Munich', title:'Munich: Marienplatz and Nymphenburg', night:'Munich',
+  plan:'A full day in the city. Old town in the morning, Nymphenburg after lunch, the English Garden to finish.',
+  legs:[],
+  sights:[{s:'Marienplatz and the Glockenspiel',q:'Marienplatz Munich',n:'Shows at 11am and noon, plus 5pm March to October.'},{s:'Munich Residenz',q:'Residenz München',n:'The city palace of the Bavarian kings, five minutes from Marienplatz.'},{s:'Nymphenburg Palace',q:'Nymphenburg Palace Munich',n:'Summer residence of the Bavarian royals. Reach it by tram.'},{s:'English Garden',q:'Englischer Garten München',n:'Watch the river surfers at the Eisbach wave, then walk to the beer garden at the Chinese Tower.'}],
+  tips:['Shops are closed tomorrow (Sunday). Buy anything you need today.']},
+ {n:16, c:'DE', place:'Dachau and Nuremberg', title:'Dachau, then on to Nuremberg', night:'Nuremberg',
+  plan:'Check out and leave your bags at the hotel. Visit the Dachau Memorial in the morning, return for the bags, and take a mid-afternoon train to Nuremberg.',
+  legs:[{a:'München Hauptbahnhof',b:'KZ-Gedenkstätte Dachau',mode:'S2 to Dachau, then bus 726',dur:'about 45 min each way'},{a:'München Hauptbahnhof',b:'Nürnberg Hauptbahnhof',mode:'ICE or regional train',dur:'1h30'}],
+  sights:[{s:'Dachau Concentration Camp Memorial',q:'KZ-Gedenkstätte Dachau',n:'Free entry. Allow about 3 hours on site.'},{s:'Nuremberg Hauptmarkt (evening)',q:'Hauptmarkt Nürnberg',n:'The main square, with the Schöner Brunnen fountain and the Frauenkirche.'}],
+  tips:['If you would rather have a lighter day, skip Dachau and take a morning train for a longer first day in Nuremberg.']},
+ {n:17, c:'DE', place:'Nuremberg', title:'Nuremberg', night:'Nuremberg',
+  plan:'The last full day. Castle and old town in the morning, the Rally Grounds museum in the afternoon. Pack tonight.',
+  legs:[],
   sights:[{s:'Nuremberg Castle',q:'Kaiserburg Nürnberg',n:'Panoramic views over the old town.'},{s:'Documentation Center Nazi Party Rally Grounds',q:'Dokumentationszentrum Reichsparteitagsgelände Nürnberg',n:'An excellent museum on the rise of the Nazi regime. Check current opening status before you go.'}],
-  tips:['Leave generous time for the airport. Plan luggage storage in Nuremberg or keep bags with you.']}
+  tips:['Check in online for tomorrow’s flights and pick seats for the Nuremberg to Paris leg.','Some Nuremberg museums close on Mondays. The castle normally stays open.']},
+ {n:18, c:'DE', place:'Nuremberg', title:'Flying home', night:null,
+  plan:'Leave the hotel by 8:15am. The flight to Paris leaves at 11:00am, the flight to Los Angeles at 4:00pm, and you land at 6:35pm the same day.',
+  legs:[{a:'Nürnberg Hauptbahnhof',b:'Nuremberg Airport',mode:'U2 underground',dur:'about 15 min'},{a:'Nuremberg (NUE)',b:'Paris (CDG)',mode:'Delta 8297, operated by Air France',dur:'1h35',when:'Departs 11:00am, lands 12:35pm.',flight:true},{a:'Paris (CDG)',b:'Los Angeles (LAX)',mode:'Delta 29',dur:'11h35',when:'Departs 4:00pm Paris time, lands 6:35pm Los Angeles time. Seats 42G and 42H.',flight:true}],
+  sights:[],
+  tips:['Be at Nuremberg airport by 9:00am.','You have 3h25 in Paris, which includes exit passport control. Enough time for lunch.']}
 ];
-const CHOICE = {
-  dachau:{s:'Dachau Concentration Camp Memorial',q:'KZ-Gedenkstätte Dachau',n:'Half day, 25 min from Munich. Free entry; closed Mondays.',leg:{a:'München Hauptbahnhof',b:'KZ-Gedenkstätte Dachau',mode:'S2 to Dachau, then bus 726',dur:'about 45 min'}},
-  neu:{s:'Neuschwanstein Castle',q:'Neuschwanstein Castle',n:'Full day, about 2 hrs each way. Timed tickets sell out, so book ahead.',leg:{a:'München Hauptbahnhof',b:'Füssen',mode:'Regional train to Füssen, then bus to Hohenschwangau',dur:'about 2 hrs'}}
-};
-const STOPS = [['Berlin',2,'DE'],['Potsdam',4,'DE'],['Wittenberg',5,'DE'],['Leipzig',5,'DE'],['Dresden',6,'DE'],['Wrocław',7,'PL'],['Kraków',7,'PL'],['Vienna',10,'AT'],['Munich',12,'DE'],['Nuremberg',14,'DE']];
+const LAST = DAYS.length;
+/* Where the nights go: [place, country, first day there, nights, how the time is used]. 0 nights = a stop on the way. */
+const STAYS = [
+ ['Berlin','DE',2,4,'Arrival evening, then 3 full days: the Wall and Reichstag, Museum Island, Potsdam'],
+ ['Wittenberg','DE',6,0,'About 2 hours between trains'],
+ ['Leipzig','DE',6,1,'An evening and a morning'],
+ ['Dresden','DE',7,1,'An afternoon and evening'],
+ ['Wrocław','PL',8,0,'A walk on the square if the layover is 2+ hours'],
+ ['Kraków','PL',8,3,'2 full days: the old town, then Auschwitz-Birkenau'],
+ ['Vienna','AT',11,2,'An evening, 1 full day and a morning'],
+ ['Munich','DE',13,3,'Neuschwanstein on Friday, the city on Saturday, Dachau on Sunday morning'],
+ ['Nuremberg','DE',16,2,'An evening and 1 full day, then the flight home']
+];
+const STOPS = [['Berlin',2,'DE'],['Potsdam',5,'DE'],['Wittenberg',6,'DE'],['Leipzig',6,'DE'],['Dresden',7,'DE'],['Wrocław',8,'PL'],['Kraków',8,'PL'],['Vienna',11,'AT'],['Munich',13,'DE'],['Nuremberg',16,'DE']];
 
 /* Map coordinates [lat, lng]: stops by name, sights by their Maps query */
 const STOP_GEO = {'Berlin':[52.5200,13.4050],'Potsdam':[52.3989,13.0657],'Wittenberg':[51.8664,12.6433],'Leipzig':[51.3397,12.3731],'Dresden':[51.0504,13.7373],'Wrocław':[51.1079,17.0385],'Kraków':[50.0614,19.9366],'Vienna':[48.2082,16.3738],'Munich':[48.1374,11.5755],'Nuremberg':[49.4521,11.0767]};
@@ -293,58 +342,64 @@ const GEO = {
  'Bratislava Old Town':[48.1439,17.1085],
  'Schönbrunn Palace Vienna':[48.1845,16.3122],'St. Stephen’s Cathedral Vienna':[48.2085,16.3731],'Hofburg Vienna':[48.2066,16.3655],'Ringstraße Wien':[48.2030,16.3610],
  'Mauthausen Memorial':[48.2567,14.5011],
- 'Marienplatz Munich':[48.1374,11.5755],'Nymphenburg Palace Munich':[48.1583,11.5033],
+ 'Marienplatz Munich':[48.1374,11.5755],'Nymphenburg Palace Munich':[48.1583,11.5033],'Residenz München':[48.1418,11.5795],'Englischer Garten München':[48.1524,11.5919],
+ 'Belvedere Palace Vienna':[48.1915,16.3809],'Marienbrücke Schwangau':[47.5546,10.7494],'Hauptmarkt Nürnberg':[49.4539,11.0773],
  'Kaiserburg Nürnberg':[49.4579,11.0758],'Dokumentationszentrum Reichsparteitagsgelände Nürnberg':[49.4336,11.1126],
  'KZ-Gedenkstätte Dachau':[48.2700,11.4680],'Neuschwanstein Castle':[47.5576,10.7498]
 };
 
 /* Photos by day: [file in photos/, caption]. Credits are in photos/credits.js */
 const PHOTOS = {
- 2:[['brandenburg-gate','Brandenburg Gate']],
- 3:[['museum-island','Museum Island']],
- 4:[['sanssouci','Sanssouci Palace'],['east-side-gallery','East Side Gallery']],
- 5:[['castle-church','Castle Church, Wittenberg']],
- 6:[['thomaskirche','St. Thomas Church, Leipzig'],['dresden','Zwinger Palace and Frauenkirche, Dresden']],
- 7:[['wroclaw-rynek','Rynek, Wrocław']],
- 8:[['wawel','Wawel Castle and Cathedral']],
- 9:[['birkenau','Auschwitz-Birkenau']],
- 10:[['bratislava','Bratislava']],
- 11:[['schoenbrunn','Schönbrunn Palace'],['stephansdom','St. Stephen’s Cathedral']],
- 13:[['marienplatz','Marienplatz'],['nymphenburg','Nymphenburg Palace'],['neuschwanstein','Neuschwanstein Castle']]
+ 3:[['brandenburg-gate','Brandenburg Gate'],['east-side-gallery','East Side Gallery']],
+ 4:[['museum-island','Museum Island']],
+ 5:[['sanssouci','Sanssouci Palace']],
+ 6:[['castle-church','Castle Church, Wittenberg']],
+ 7:[['thomaskirche','St. Thomas Church, Leipzig'],['dresden','Zwinger Palace and Frauenkirche, Dresden']],
+ 8:[['wroclaw-rynek','Rynek, Wrocław']],
+ 9:[['wawel','Wawel Castle and Cathedral']],
+ 10:[['birkenau','Auschwitz-Birkenau']],
+ 11:[['stephansdom','St. Stephen’s Cathedral'],['bratislava','Bratislava']],
+ 12:[['schoenbrunn','Schönbrunn Palace']],
+ 14:[['neuschwanstein','Neuschwanstein Castle']],
+ 15:[['marienplatz','Marienplatz'],['nymphenburg','Nymphenburg Palace']]
 };
-/* Places close to the route that are not in the 14-day plan. d = the day they would attach to. */
+/* Places close to the route that are not in the plan. d = the day they would attach to. */
 const EXTRAS = [
- {s:'Bastei Bridge, Saxon Switzerland',q:'Basteibrücke',c:'DE',d:6,dist:'45–60 min from Dresden',n:'Dramatic sandstone cliffs.',tag:'Needs an extra half day',ll:[50.9619,14.0731]},
- {s:'Wieliczka Salt Mine',q:'Wieliczka Salt Mine',c:'PL',d:8,dist:'30–45 min from Kraków',n:'UNESCO site, with an underground chapel carved entirely from salt.',tag:'Optional add-on',ll:[49.9833,20.0553]},
- {s:'Salzburg Old Town',q:'Salzburg Altstadt',c:'AT',d:13,dist:'about 1.5 hrs from Munich',n:'The easiest cross-border day trip from Munich, if a 15th day opens up.',tag:'Great extension',ll:[47.7995,13.0447]},
- {s:'Rothenburg ob der Tauber',q:'Rothenburg ob der Tauber',c:'DE',d:14,dist:'1–2 hrs from Nuremberg',n:'Trimmed from this 14-day version for time.',tag:'Trimmed for time',ll:[49.3780,10.1790]},
- {s:'Bamberg',q:'Bamberg Altstadt',c:'DE',d:14,dist:'1–2 hrs from Nuremberg',n:'Trimmed from this 14-day version for time.',tag:'Trimmed for time',ll:[49.8917,10.8869]},
- {s:'Bayreuth',q:'Bayreuth',c:'DE',d:14,dist:'1–2 hrs from Nuremberg',n:'Trimmed from this 14-day version for time.',tag:'Trimmed for time',ll:[49.9456,11.5713]}
+ {s:'Bastei Bridge, Saxon Switzerland',q:'Basteibrücke',c:'DE',d:7,dist:'45–60 min from Dresden',n:'Dramatic sandstone cliffs.',tag:'Needs an extra half day',ll:[50.9619,14.0731]},
+ {s:'Wieliczka Salt Mine',q:'Wieliczka Salt Mine',c:'PL',d:9,dist:'30–45 min from Kraków',n:'UNESCO site, with an underground chapel carved entirely from salt.',tag:'Optional add-on',ll:[49.9833,20.0553]},
+ {s:'Salzburg Old Town',q:'Salzburg Altstadt',c:'AT',d:15,dist:'about 1.5 hrs from Munich',n:'A cross-border day trip that would replace the Munich city day.',tag:'Swap for a Munich day',ll:[47.7995,13.0447]},
+ {s:'Rothenburg ob der Tauber',q:'Rothenburg ob der Tauber',c:'DE',d:17,dist:'1–2 hrs from Nuremberg',n:'A walled medieval town. It would replace the Nuremberg city day.',tag:'Swap for the Nuremberg day',ll:[49.3780,10.1790]},
+ {s:'Bamberg',q:'Bamberg Altstadt',c:'DE',d:17,dist:'about 45 min from Nuremberg',n:'A UNESCO old town. Close enough for a half day out of the Nuremberg city day.',tag:'Half-day option',ll:[49.8917,10.8869]},
+ {s:'Bayreuth',q:'Bayreuth',c:'DE',d:17,dist:'about 1 hr from Nuremberg',n:'Wagner’s town. It would replace the Nuremberg city day.',tag:'Swap for the Nuremberg day',ll:[49.9456,11.5713]}
 ];
 const PLAN_NOTES = [
- 'Fitting this into 14 days: the original wish list (4–5 days Berlin, 3–4 Vienna, 2 each for Munich and Nuremberg, plus Bayreuth) adds up closer to 16–18 days. This version trims Berlin to 3.5 days, Vienna to 2, Munich to 1.5, and drops the second Nuremberg day and Bayreuth entirely.',
- 'To restore them, either add 3–4 days to the trip, or cut one leg, for example skip Wrocław, Kraków and Auschwitz and go straight from Dresden to Vienna.',
+ 'The flights give you 16 nights on the ground: you land in Berlin on the evening of Sunday April 25 and fly out of Nuremberg on the morning of Tuesday May 11.',
+ 'Compared with the earlier 14-day plan, the four extra nights went to Berlin (the evening arrival costs most of a day), Munich (so Neuschwanstein and Dachau both fit) and Nuremberg (two nights, because the flight home leaves from there at 11am).',
+ 'Vienna is the tight one: an evening, one full day and a morning. It has to end on Thursday so that Friday is free for Neuschwanstein. To give Vienna a third night, take one from Berlin and move every stop between Berlin and Vienna one day earlier.',
+ 'Three public holidays fall inside the trip: May 1 (Germany and Poland), May 3 (Poland) and Ascension Day on Thursday May 6 (Austria and Germany). Trains run, but shops close and seats and tickets sell out sooner.',
  'The original notes list "Kraków to Venice", but the travel time given (5h40) matches Kraków to Vienna, not Venice. This plan assumes Vienna is correct.'
 ];
 
 const BOOK_DEFAULT = [
- {id:'fl',t:'Flights LAX to Berlin, and Munich or Nuremberg to LAX',grp:'Travel'},
- {id:'h1',t:'Hotel in Berlin (nights of days 2–4)',grp:'Stays'},
- {id:'h2',t:'Hotel in Leipzig (day 5)',grp:'Stays'},
- {id:'h3',t:'Hotel in Dresden (day 6)',grp:'Stays'},
- {id:'h4',t:'Hotel in Kraków (days 7–9)',grp:'Stays'},
- {id:'h5',t:'Hotel in Vienna (days 10–11)',grp:'Stays'},
- {id:'h6',t:'Hotel in Munich (days 12–13)',grp:'Stays'},
- {id:'t1',t:'Train Dresden to Wrocław to Kraków (day 7)',grp:'Trains',u:'https://www.intercity.pl/en/'},
- {id:'t2',t:'Train Kraków to Vienna (day 10)',grp:'Trains',u:'https://www.oebb.at/en/'},
- {id:'t3',t:'Train Vienna to Munich (day 12)',grp:'Trains',u:'https://www.oebb.at/en/'},
+ {id:'fl',t:'Flights: LAX to Berlin on Apr 24, Nuremberg to LAX on May 11 (booked with Delta through Orbitz)',grp:'Travel'},
+ {id:'fs',t:'Pick seats on the two Air France flights (Paris to Berlin, Nuremberg to Paris)',grp:'Travel',u:'https://www.delta.com/mytrips/'},
+ {id:'h1',t:'Hotel in Berlin, 4 nights: Apr 25 to 29',grp:'Stays'},
+ {id:'h2',t:'Hotel in Leipzig, 1 night: Apr 29 to 30',grp:'Stays'},
+ {id:'h3',t:'Hotel in Dresden, 1 night: Apr 30 to May 1',grp:'Stays'},
+ {id:'h4',t:'Hotel in Kraków, 3 nights: May 1 to 4',grp:'Stays'},
+ {id:'h5',t:'Hotel in Vienna, 2 nights: May 4 to 6',grp:'Stays'},
+ {id:'h6',t:'Hotel in Munich, 3 nights: May 6 to 9',grp:'Stays'},
+ {id:'h7',t:'Hotel in Nuremberg, 2 nights: May 9 to 11',grp:'Stays'},
+ {id:'t1',t:'Train Dresden to Wrocław to Kraków (Sat May 1, a holiday)',grp:'Trains',u:'https://www.intercity.pl/en/'},
+ {id:'t2',t:'Train Kraków to Vienna (Tue May 4)',grp:'Trains',u:'https://www.oebb.at/en/'},
+ {id:'t3',t:'Train Vienna to Munich, mid-afternoon (Thu May 6, a holiday)',grp:'Trains',u:'https://www.oebb.at/en/'},
  {id:'t4',t:'Deutschlandticket for German regional trains (optional)',grp:'Trains',u:'https://www.bahn.com/en/offers/regional/deutschland-ticket'},
- {id:'s1',t:'Reichstag Dome time slot (day 3)',grp:'Tickets',u:'https://visite.bundestag.de/'},
- {id:'s2',t:'Pergamon or Neues Museum tickets (day 3)',grp:'Tickets',u:'https://www.smb.museum/en/'},
- {id:'s3',t:'Auschwitz-Birkenau guided entry (day 9), weeks ahead',grp:'Tickets',u:'https://visit.auschwitz.org/'},
- {id:'s4',t:'Schönbrunn Palace timed ticket (day 11)',grp:'Tickets',u:'https://www.schoenbrunn.at/en/'},
- {id:'s5',t:'Neuschwanstein ticket, if you pick it for day 13',grp:'Tickets',u:'https://www.hohenschwangau.de/en/'},
- {id:'o1',t:'Travel insurance',grp:'Before you go'},
+ {id:'s1',t:'Reichstag Dome time slot (Mon Apr 26)',grp:'Tickets',u:'https://visite.bundestag.de/'},
+ {id:'s2',t:'Pergamon or Neues Museum tickets (Tue Apr 27)',grp:'Tickets',u:'https://www.smb.museum/en/'},
+ {id:'s3',t:'Auschwitz-Birkenau guided entry (Mon May 3), as early as possible',grp:'Tickets',u:'https://visit.auschwitz.org/'},
+ {id:'s4',t:'Schönbrunn Palace timed ticket (Wed May 5)',grp:'Tickets',u:'https://www.schoenbrunn.at/en/'},
+ {id:'s5',t:'Neuschwanstein timed ticket (Fri May 7), around midday',grp:'Tickets',u:'https://www.hohenschwangau.de/en/'},
+
  {id:'o2',t:'Tell your bank you are travelling; carry a no-foreign-fee card',grp:'Before you go'},
  {id:'o3',t:'eSIM or roaming plan covering Germany, Poland and Austria',grp:'Before you go'}
 ];
@@ -394,9 +449,10 @@ const COUNTRY_TIPS = {
 
 /* ---------- State ---------- */
 const KEY='railloop:v1';
-let S = {start:'',choice:'',done:{},custom:[],spend:[],rates:{EUR:1.15,PLN:0.27},lang:'de',tab:'today',peek:1};
+let S = {start:'',done:{},custom:[],spend:[],rates:{EUR:1.15,PLN:0.27},lang:'de',tab:'today',peek:1};
 try{ const raw=localStorage.getItem(KEY); if(raw) S=Object.assign(S,JSON.parse(raw)); }catch(e){}
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+if(S.plan!==2){ S.start=TRIP_START; S.plan=2; delete S.choice; S.done.fl=true; if(S.peek>LAST) S.peek=1; save(); }
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function tripDay(){
@@ -410,7 +466,7 @@ function dateFor(n){
   return d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
 }
 function isSunday(n){ if(!S.start) return false; const d=new Date(S.start+'T00:00:00'); d.setDate(d.getDate()+n-1); return d.getDay()===0; }
-function isMonday(n){ if(!S.start) return false; const d=new Date(S.start+'T00:00:00'); d.setDate(d.getDate()+n-1); return d.getDay()===1; }
+function shortDate(n){ const d=new Date(S.start+'T00:00:00'); d.setDate(d.getDate()+n-1); return d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}); }
 const col = c => 'var(--'+CC[c]+')';
 const soft = c => c==='US'?'var(--line)':'var(--'+CC[c]+'-soft)';
 
@@ -435,22 +491,14 @@ function strip(cur){
 /* ---------- Day detail ---------- */
 function dayBody(d){
   let legs=[...d.legs], sights=[...d.sights];
-  if(d.choice && S.choice){ sights.push(CHOICE[S.choice]); legs.push(CHOICE[S.choice].leg); }
   let h='';
   if(d.plan) h+=`<p style="margin:0 0 10px">${esc(d.plan)}</p>`;
   if(PHOTOS[d.n]) h+=`<div class="photos">${PHOTOS[d.n].map(p=>`<figure><img src="photos/${p[0]}.jpg" alt="${esc(p[1])}" loading="lazy"><figcaption class="small muted">${esc(p[1])}</figcaption></figure>`).join('')}</div>`;
   if(isSunday(d.n)) h+=`<div class="note small">This day is a Sunday. Most shops will be closed; buy food and essentials the day before.</div>`;
-  if(d.choice){
-    h+=`<div class="panel" style="background:var(--paper)"><h2 style="font-size:19px">Pick one for this afternoon</h2><div class="seg" role="group" aria-label="Day 13 choice">
-      <button data-choice="dachau" aria-pressed="${S.choice==='dachau'}">Dachau Memorial</button>
-      <button data-choice="neu" aria-pressed="${S.choice==='neu'}">Neuschwanstein</button></div>
-      ${S.choice==='dachau'&&isMonday(13)?'<div class="note small">Day 13 falls on a Monday, when the Dachau Memorial is closed. Consider swapping.</div>':''}
-      ${S.choice?'':'<p class="small muted" style="margin:0">Your choice adds directions and a booking reminder.</p>'}</div>`;
-  }
   if(legs.length){
     h+=`<h3 class="cond" style="font-size:18px;margin:12px 0 2px">Getting there</h3>`;
     legs.forEach(l=>{
-      h+=`<div class="leg"><div style="flex:1"><div class="t">${esc(l.a)} to ${esc(l.b)}</div><div class="small muted">${esc(l.mode)}, ${esc(l.dur)}</div>
+      h+=`<div class="leg"><div style="flex:1"><div class="t">${esc(l.a)} to ${esc(l.b)}</div><div class="small muted">${esc(l.mode)}, ${esc(l.dur)}</div>${l.when?`<div class="small">${esc(l.when)}</div>`:''}
       ${l.flight?'':`<div class="btnrow"><a class="btn primary" target="_blank" rel="noopener" href="${dir(l.a,l.b)}">Directions</a><a class="btn" target="_blank" rel="noopener" href="https://int.bahn.de/en">Check times on bahn.de</a></div>`}</div></div>`;
     });
   }
@@ -474,7 +522,7 @@ function vToday(){
   const td=tripDay();
   let h='';
   if(!S.start){
-    h+=`<div class="hero"><h1>Your Berlin to Vienna loop</h1><p class="muted">14 days, 3 countries, one rail loop. Enter the day you fly out of LAX so the app can show the right day each morning.</p></div>
+    h+=`<div class="hero"><h1>Your Berlin to Vienna loop</h1><p class="muted">${LAST} days, 3 countries, one rail loop. Enter the day you fly out of LAX so the app can show the right day each morning.</p></div>
     <div class="panel"><label for="sd" class="cond" style="font-size:19px">Departure date (Day 1)</label><div class="row" style="margin-top:8px"><input id="sd" type="date"><button class="btn primary" id="setd">Save date</button></div></div>`;
     h+=strip(null);
     h+=`<div class="panel"><h2>Preview: Day ${S.peek}</h2>${dayBody(DAYS[S.peek-1])}</div>`;
@@ -485,33 +533,47 @@ function vToday(){
     h+=strip(null);
     const done=BOOK_DEFAULT.concat(S.custom).filter(b=>S.done[b.id]).length, tot=BOOK_DEFAULT.length+S.custom.length;
     h+=`<div class="panel"><h2>Bookings</h2><p style="margin:0">${done} of ${tot} done.</p><div class="progress"><i style="width:${tot?done/tot*100:0}%"></i></div><button class="btn" data-go="book">Open the list</button></div>`;
-    h+=`<div class="panel"><h2>Day 1</h2>${dayBody(DAYS[0])}</div>`;
+    h+=flightPanel()+`<div class="panel"><h2>Day 1</h2>${dayBody(DAYS[0])}</div>`;
     return h;
   }
-  if(td>14){
-    h+=`<div class="hero"><h1>Welcome home</h1><p class="muted">The trip ran ${esc(dateFor(1))} to ${esc(dateFor(14))}. Your spending log is still in the Money tab.</p></div>`+strip(14);
+  if(td>LAST){
+    h+=`<div class="hero"><h1>Welcome home</h1><p class="muted">The trip ran ${esc(dateFor(1))} to ${esc(dateFor(LAST))}. Your spending log is still in the Money tab.</p></div>`+strip(LAST);
     return h;
   }
   const d=DAYS[td-1];
-  h+=`<div class="hero"><div class="daynum">${td}<small>of 14</small></div><h1>${esc(d.title)}</h1><p class="date">${esc(dateFor(td))}, <span class="chip" style="--c:${col(d.c)};--soft:${soft(d.c)}">${esc(d.place)}</span></p></div>`;
+  h+=`<div class="hero"><div class="daynum">${td}<small>of ${LAST}</small></div><h1>${esc(d.title)}</h1><p class="date">${esc(dateFor(td))}, <span class="chip" style="--c:${col(d.c)};--soft:${soft(d.c)}">${esc(d.place)}</span></p></div>`;
   h+=strip(td);
   if(d.from && COUNTRY_TIPS[d.c]) h+=`<div class="panel"><h2>New country today</h2>${COUNTRY_TIPS[d.c].map(t=>`<div class="note small">${esc(t)}</div>`).join('')}</div>`;
   h+=`<div class="panel">${dayBody(d)}</div>`;
-  if(td<14){ const n=DAYS[td]; h+=`<div class="panel"><h2>Tomorrow: ${esc(n.title)}</h2><p class="small muted" style="margin:0">${esc(n.plan)}</p></div>`; }
+  if(td<LAST){ const n=DAYS[td]; h+=`<div class="panel"><h2>Tomorrow: ${esc(n.title)}</h2><p class="small muted" style="margin:0">${esc(n.plan)}</p></div>`; }
   return h;
 }
 
 function vRoute(){
   const td=tripDay();
-  let h=`<h1 style="font-size:36px;margin:4px 0 4px">The route</h1><p class="muted" style="margin:0 0 18px">Tap a day to see trains, sights and directions.</p><div class="line">`;
+  let h=`<h1 style="font-size:36px;margin:4px 0 4px">The route</h1><p class="muted" style="margin:0 0 18px">Tap a day to see trains, sights and directions.</p>`+timeline()+flightPanel()+`<h2 style="margin:20px 0 10px">Day by day</h2><div class="line">`;
   DAYS.forEach(d=>{
     h+=`<div class="stop ${td===d.n?'now':''}" id="day${d.n}" style="--c:${col(d.c)};--soft:${soft(d.c)}"><details ${td===d.n||focusDay===d.n?'open':''}><summary><span class="dn">${d.n}</span><span class="st"><h3>${esc(d.title)}</h3><span class="small muted">${S.start?esc(dateFor(d.n))+', ':''}${d.legs.length?esc(d.legs.map(l=>l.dur).join(' + ')):'No long transfers'}</span></span></summary><div class="body">${dayBody(d)}</div></details></div>`;
   });
-  h+=`</div><div class="panel" style="margin-top:18px"><h2>If the trip grows</h2><p class="small muted" style="margin:0 0 6px">Close to the route, but not in the 14-day plan.</p>${EXTRAS.map(x=>`<div class="sight"><b>${esc(x.s)}</b><span class="chip" style="margin-left:6px;--c:${col(x.c)};--soft:${soft(x.c)}">${esc(x.tag)}</span><div class="small muted">${esc(x.dist)}. ${esc(x.n)}</div><div class="btnrow"><a class="btn" target="_blank" rel="noopener" href="${g(x.q)}">Open in Maps</a></div></div>`).join('')}</div>
-  <div class="panel"><h2>How this plan was trimmed</h2>${PLAN_NOTES.map(t=>`<div class="note small">${esc(t)}</div>`).join('')}</div>
+  h+=`</div><div class="panel" style="margin-top:18px"><h2>If the trip grows</h2><p class="small muted" style="margin:0 0 6px">Close to the route, but not in the plan. Each one replaces something that is.</p>${EXTRAS.map(x=>`<div class="sight"><b>${esc(x.s)}</b><span class="chip" style="margin-left:6px;--c:${col(x.c)};--soft:${soft(x.c)}">${esc(x.tag)}</span><div class="small muted">${esc(x.dist)}. ${esc(x.n)}</div><div class="btnrow"><a class="btn" target="_blank" rel="noopener" href="${g(x.q)}">Open in Maps</a></div></div>`).join('')}</div>
+  <div class="panel"><h2>How the 18 days are split</h2>${PLAN_NOTES.map(t=>`<div class="note small">${esc(t)}</div>`).join('')}</div>
   <div class="panel"><details><summary class="small">Photo credits</summary><p class="small muted">Photos are from Wikimedia Commons.</p>${Object.values(PHOTOS).flat().map(p=>{const c=PHOTO_CREDITS[p[0]]; return c?`<div class="small" style="padding:3px 0">${esc(p[1])}: ${esc(c[0])}, ${esc(c[1])}. <a target="_blank" rel="noopener" href="${esc(c[2])}">Source</a></div>`:'';}).join('')}</details></div>`;
   h+=`<div class="panel"><h2>Trip settings</h2><label for="sd2" class="small muted">Departure date (Day 1)</label><div class="row" style="margin-top:6px"><input id="sd2" type="date" value="${esc(S.start)}"><button class="btn" id="setd2">Update</button></div></div>`;
   return h;
+}
+
+function timeline(){
+  if(!S.start) return '';
+  const td=tripDay(), max=Math.max(...STAYS.map(x=>x[3]));
+  const rows=STAYS.map(([name,c,d,nights,use])=>{
+    const here=td>=d&&td<(nights?d+nights:d+1)&&td<=LAST;
+    return `<div class="tl ${nights?'':'pass'} ${here?'here':''}" style="--c:${col(c)};--soft:${soft(c)}"><div class="tlh"><b>${esc(name)}</b><span class="chip">${nights?nights+(nights===1?' night':' nights'):'stop'}</span></div>
+      <div class="small muted">${nights?esc(shortDate(d))+' to '+esc(shortDate(d+nights)):esc(shortDate(d))}</div>${nights?`<div class="tlbar"><i style="width:${nights/max*100}%"></i></div>`:''}<div class="small">${esc(use)}</div></div>`;
+  }).join('');
+  return `<div class="panel"><h2>Trip timeline</h2><p class="small muted" style="margin:0 0 4px">${esc(shortDate(1))} to ${esc(shortDate(LAST))}: ${STAYS.reduce((a,x)=>a+x[3],0)} nights on the ground, and how long to give each place.</p>${rows}</div>`;
+}
+function flightPanel(){
+  return `<div class="panel"><h2>Your flights</h2>${FLIGHTS.map(f=>`<h3 class="cond" style="font-size:18px;margin:10px 0 2px">${esc(f.t)}</h3>${f.segs.map(x=>x.lay?`<div class="small muted" style="padding:2px 0 2px 12px">${esc(x.lay)}</div>`:`<div class="leg"><div style="flex:1"><div class="t">${esc(x.a)} to ${esc(x.b)}</div><div class="small">${esc(x.dep)} → ${esc(x.arr)}</div><div class="small muted">${esc(x.no)}, ${esc(x.dur)}. ${esc(x.seat)}.</div></div></div>`).join('')}`).join('')}<p class="small muted" style="margin:10px 0 0">Times are local. Your confirmation code is in the Orbitz email; it is left out here because this app is on a public web address.</p></div>`;
 }
 
 function vBook(){
@@ -706,7 +768,7 @@ function popup(title,sub,day,q){
 function mapMsg(t){ const m=document.getElementById('mapmsg'); if(m) m.textContent=t||(navigator.onLine?'':'No signal: showing the route, pins and any streets you have already viewed.'); }
 function closeMap(){ if(!map) return; try{ mapView={c:map.getCenter(),z:map.getZoom()}; }catch(e){} map.remove(); map=null; meMarker=null; }
 function initMap(){
-  const td=tripDay(); let idx=-1; if(td>=1&&td<=14) STOPS.forEach((s,i)=>{ if(s[1]<=td) idx=i; });
+  const td=tripDay(); let idx=-1; if(td>=1&&td<=LAST) STOPS.forEach((s,i)=>{ if(s[1]<=td) idx=i; });
   map=L.map('map',{zoomControl:true,attributionControl:true,minZoom:4,maxBounds:[[40,0],[58,30]]});
   map.attributionControl.setPrefix(false);
   if(mapView) map.setView(mapView.c,mapView.z);
@@ -723,7 +785,8 @@ function initMap(){
   main.forEach((s,i)=>{ if(i) line(STOP_GEO[main[i-1][0]],STOP_GEO[s[0]],s[2]); });
   line(STOP_GEO['Berlin'],STOP_GEO['Potsdam'],'DE',true);
   line(STOP_GEO['Kraków'],GEO['Auschwitz I Museum Oświęcim'],'PL',true);
-  if(S.choice) line(STOP_GEO['Munich'],GEO[CHOICE[S.choice].q],'DE',true);
+  line(STOP_GEO['Munich'],GEO['Neuschwanstein Castle'],'DE',true);
+  line(STOP_GEO['Munich'],GEO['KZ-Gedenkstätte Dachau'],'DE',true);
 
   const cities=L.layerGroup(), sights=L.layerGroup();
   STOPS.forEach((s,i)=>{
@@ -731,8 +794,7 @@ function initMap(){
       .bindPopup(popup(s[0],stopDays(s[0]),s[1])).bindTooltip(s[0],{permanent:true,direction:LABEL_DIR[s[0]]||'top',offset:LABEL_OFF[LABEL_DIR[s[0]]||'top'],className:'city'}).addTo(cities);
   });
   DAYS.forEach(d=>{
-    const list=d.choice&&S.choice?d.sights.concat(CHOICE[S.choice]):d.sights;
-    list.forEach(x=>{ if(GEO[x.q]) L.marker(GEO[x.q],{icon:pin('p-sight',col(d.c)),title:x.s}).bindPopup(popup(x.s,'Day '+d.n+(x.n?'. '+x.n:''),d.n,x.q)).addTo(sights); });
+    d.sights.forEach(x=>{ if(GEO[x.q]) L.marker(GEO[x.q],{icon:pin('p-sight',col(d.c)),title:x.s}).bindPopup(popup(x.s,'Day '+d.n+(x.n?'. '+x.n:''),d.n,x.q)).addTo(sights); });
   });
   EXTRAS.forEach(x=>L.marker(x.ll,{icon:pin('p-extra',col(x.c)),title:x.s}).bindPopup(popup(x.s,'Not in the plan. '+x.dist+'. '+x.n,x.d,x.q)).addTo(sights));
   // Zoomed out you see the loop and city names; zoom in and the sights take over.
@@ -767,7 +829,7 @@ function convert(){
   const a=+document.getElementById('cvA').value||0, c=document.getElementById('cvC').value;
   document.getElementById('cvOut').textContent='$'+(a*S.rates[c]).toFixed(2);
 }
-function curCountry(){ const t=tripDay(); if(!t||t<1||t>14) return 'other'; const d=DAYS[t-1]; return d.c==='US'?'other':d.c; }
+function curCountry(){ const t=tripDay(); if(!t||t<1||t>LAST) return 'other'; const d=DAYS[t-1]; return d.c==='US'?'other':d.c; }
 
 document.querySelector('nav.tabs').addEventListener('click',e=>{
   const b=e.target.closest('button[data-tab]'); if(!b) return;
@@ -779,14 +841,13 @@ document.getElementById('app').addEventListener('click',e=>{
   if(t.dataset.go){ S.tab=t.dataset.go; save(); render(); window.scrollTo(0,0); }
   if(t.dataset.jump) jump(t.dataset.jump);
   const sayEl=canSpeak&&t.closest('[data-say]'); if(sayEl) say(sayEl);
-  if(t.dataset.choice){ S.choice=S.choice===t.dataset.choice?'':t.dataset.choice; save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
   if(t.dataset.lang){ S.lang=t.dataset.lang; save(); render(); }
   if(t.dataset.rmc){ S.custom=S.custom.filter(b=>b.id!==t.dataset.rmc); delete S.done[t.dataset.rmc]; save(); render(); }
   if(t.id==='addb'){ const v=document.getElementById('newb').value.trim(); if(v){ S.custom.push({id:'u'+Date.now(),t:v,grp:'Your additions',custom:true}); save(); render(); } }
   if(t.id==='saveR'){ const e1=+document.getElementById('rE').value, p1=+document.getElementById('rP').value; if(e1>0)S.rates.EUR=e1; if(p1>0)S.rates.PLN=p1; save(); render(); }
   if(t.id==='addS'){
     const n=document.getElementById('spN').value.trim()||'Expense', a=parseFloat(document.getElementById('spA').value), c=document.getElementById('spC').value;
-    if(a>0){ const td=tripDay(); S.spend.push({id:'s'+Date.now(),n,a,c,k:curCountry(),d:(td>=1&&td<=14)?td:''}); scan.draft=null; scan.msg=''; save(); render(); }
+    if(a>0){ const td=tripDay(); S.spend.push({id:'s'+Date.now(),n,a,c,k:curCountry(),d:(td>=1&&td<=LAST)?td:''}); scan.draft=null; scan.msg=''; save(); render(); }
   }
   if(t.dataset.rms){ S.spend=S.spend.filter(x=>x.id!==t.dataset.rms); save(); render(); }
 });
