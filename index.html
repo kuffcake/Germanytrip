@@ -152,10 +152,15 @@ main.maptab{display:flex;flex-direction:column;height:calc(100dvh - env(safe-are
 .seg{display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin-bottom:14px}
 .seg button{flex:1;border:0;background:none;padding:8px;border-radius:999px;font-weight:600;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-.phr{padding:10px 0;border-top:1px solid var(--line)}
+.phr{padding:10px 0;border-top:1px solid var(--line);display:flex;gap:12px;align-items:center}
+.say{flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--paper);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.say svg{pointer-events:none}
+.say.speaking{background:var(--signal);border-color:var(--signal);color:#1B1F27}
+.sign[data-say]{cursor:pointer}
+.sign.speaking{outline:3px solid var(--signal);outline-offset:1px}
 .phr:first-child{border-top:0}
 .phr .src{font-family:"Barlow Condensed",Arial,sans-serif;font-size:21px;font-weight:600}
-.phr .say{font-size:14px;color:var(--muted);font-style:italic}
+.phr .pron{font-size:14px;color:var(--muted);font-style:italic}
 .signs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sign{background:var(--de);color:#fff;border-radius:8px;padding:10px 12px}
 .sign.pl{background:var(--pl)}
@@ -524,15 +529,32 @@ function vBook(){
   return h;
 }
 
+/* ---------- Voice: the phone's own German and Polish voices, so nothing to download ---------- */
+const canSpeak='speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+const SPEECH_LANG={de:'de-DE',pl:'pl-PL'};
+const SPEAKER='<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+// Turn a phrase card into something a voice can read: drop bracketed asides and symbols, pause at slashes and gaps.
+const spoken=s=>s.replace(/\([^)]*\)/g,' ').replace(/[○▽]/g,' ').replace(/\s*[\/…]\s*/g,', ').replace(/,\s*([?.!])/g,'$1').replace(/\s+/g,' ').replace(/^[, ]+|[, ]+$/g,'');
+function say(el){
+  const code=el.dataset.sl, u=new SpeechSynthesisUtterance(spoken(el.dataset.say));
+  u.lang=SPEECH_LANG[code]; u.rate=0.85;
+  const v=speechSynthesis.getVoices().find(v=>v.lang.replace('_','-').toLowerCase().startsWith(code)); if(v) u.voice=v;
+  document.querySelectorAll('.speaking').forEach(x=>x.classList.remove('speaking'));
+  el.classList.add('speaking'); u.onend=u.onerror=()=>el.classList.remove('speaking');
+  speechSynthesis.cancel(); speechSynthesis.speak(u);
+}
+if(canSpeak) speechSynthesis.getVoices(); // iOS loads its voice list lazily; ask early so it is ready by the first tap
+
 function vWords(){
   const L=S.lang;
   let h=`<h1 style="font-size:36px;margin:4px 0 12px">Words</h1><div class="seg" role="group" aria-label="Language">
    <button data-lang="de" aria-pressed="${L==='de'}">German</button><button data-lang="pl" aria-pressed="${L==='pl'}">Polish (days 7–10)</button><button data-lang="signs" aria-pressed="${L==='signs'}">Signs</button></div>`;
   if(L==='signs'){
-    h+=`<p class="muted small" style="margin-top:0">What you will see at stations and shop doors. Blue is German, red is Polish.</p><div class="signs">${SIGNS.map(s=>`<div class="sign ${s[2]==='pl'?'pl':''}"><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`).join('')}</div>`;
+    h+=`<p class="muted small" style="margin-top:0">What you will see at stations and shop doors. Blue is German, red is Polish.${canSpeak?' Tap a sign to hear it.':''}</p><div class="signs">${SIGNS.map(s=>`<div class="sign ${s[2]==='pl'?'pl':''}" ${canSpeak?`data-say="${esc(s[0])}" data-sl="${s[2]}"`:''}><b>${esc(s[0])}</b><span>${esc(s[1])}</span></div>`).join('')}</div>`;
     h+=`<div class="panel" style="margin-top:14px"><h2>Country tips</h2>${['DE','PL','AT'].map(c=>`<h3 class="cond" style="font-size:18px;margin:10px 0 4px;color:${col(c)}">${{DE:'Germany',PL:'Poland',AT:'Austria'}[c]}</h3>${COUNTRY_TIPS[c].map(t=>`<div class="note small">${esc(t)}</div>`).join('')}`).join('')}</div>`;
   } else {
-    h+=`<div class="panel">${PHRASES[L].map(p=>`<div class="phr"><div class="src">${esc(p[0])}</div><div>${esc(p[1])}</div><div class="say">${esc(p[2])}</div></div>`).join('')}</div>`;
+    if(canSpeak) h+=`<p class="muted small" style="margin-top:0">Tap the speaker to hear a phrase. It uses your phone's built-in voice, so it works with no signal.</p>`;
+    h+=`<div class="panel">${PHRASES[L].map(p=>`<div class="phr"><div style="flex:1;min-width:0"><div class="src">${esc(p[0])}</div><div>${esc(p[1])}</div><div class="pron">${esc(p[2])}</div></div>${canSpeak?`<button class="say" data-say="${esc(p[0])}" data-sl="${L}" aria-label="Hear it: ${esc(p[1])}">${SPEAKER}</button>`:''}</div>`).join('')}</div>`;
     if(L==='de') h+=`<p class="small muted">In Austria and Bavaria, "Grüß Gott" (hello) and "Servus" (hi / bye) are everywhere.</p>`;
   }
   return h;
@@ -651,6 +673,7 @@ document.getElementById('app').addEventListener('click',e=>{
   if(t.id==='setd'||t.id==='setd2'){ const v=document.getElementById(t.id==='setd'?'sd':'sd2').value; if(v){S.start=v;save();render();} }
   if(t.dataset.go){ S.tab=t.dataset.go; save(); render(); window.scrollTo(0,0); }
   if(t.dataset.jump) jump(t.dataset.jump);
+  const sayEl=canSpeak&&t.closest('[data-say]'); if(sayEl) say(sayEl);
   if(t.dataset.choice){ S.choice=S.choice===t.dataset.choice?'':t.dataset.choice; save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
   if(t.dataset.lang){ S.lang=t.dataset.lang; save(); render(); }
   if(t.dataset.rmc){ S.custom=S.custom.filter(b=>b.id!==t.dataset.rmc); delete S.done[t.dataset.rmc]; save(); render(); }
