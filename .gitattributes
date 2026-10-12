@@ -1,0 +1,3 @@
+*.gz binary
+*.wasm.js -text
+ocr/*.js -text

@@ -52,6 +52,7 @@ input,select{font-size:16px}
 :focus-visible{outline:3px solid var(--signal);outline-offset:2px}
 main{max-width:640px;margin:0 auto;padding:20px 18px 110px}
 .muted{color:var(--muted)}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip-path:inset(50%)}
 .small{font-size:14px}
 
 /* Tab bar */
@@ -560,6 +561,108 @@ function vWords(){
   return h;
 }
 
+/* ---------- Receipt scanning: the photo is read on the phone, nothing is uploaded ---------- */
+let scan={busy:false,msg:'',draft:null}, ocrWorker=null;
+const OCR_BASE=new URL('ocr/',location.href).href;
+const OCR_FILES=['tesseract.min.js','worker.min.js','tesseract-core-simd-lstm.wasm.js','tesseract-core-lstm.wasm.js','lang/deu.traineddata.gz','lang/pol.traineddata.gz'];
+function scanMsg(t){ scan.msg=t; const m=document.getElementById('scanMsg'); if(m){ m.textContent=t; m.hidden=!t; } }
+function loadScript(src){ return new Promise((ok,no)=>{ const s=document.createElement('script'); s.src=src; s.onload=ok; s.onerror=()=>{ s.remove(); no(new Error('script')); }; document.head.appendChild(s); }); }
+async function getOcr(){
+  if(ocrWorker) return ocrWorker;
+  if(!window.Tesseract) await loadScript(OCR_BASE+'tesseract.min.js');
+  const w=await Tesseract.createWorker(['deu','pol'],1,{workerPath:OCR_BASE+'worker.min.js',corePath:OCR_BASE,langPath:OCR_BASE+'lang',workerBlobURL:false,
+    logger:m=>{ if(scan.busy) scanMsg(m.status==='recognizing text'?`Reading the receipt… ${Math.round(m.progress*100)}%`:'Getting the reader ready…'); }});
+  // One block of text, keeping the gap between an item and its price so they stay on the same line.
+  await w.setParameters({tessedit_pageseg_mode:'6',preserve_interword_spaces:'1'});
+  return ocrWorker=w;
+}
+async function toCanvas(file){
+  let img, url=null;
+  if(window.createImageBitmap) img=await createImageBitmap(file);
+  else { url=URL.createObjectURL(file); img=new Image(); await new Promise((ok,no)=>{ img.onload=ok; img.onerror=no; img.src=url; }); }
+  try{
+    const w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+    // Bring the long side to about 2400px: shrinks camera photos for speed, and enlarges small ones because tiny print gets misread.
+    const k=Math.min(2.5,2400/Math.max(w,h));
+    const c=document.createElement('canvas'); c.width=Math.round(w*k); c.height=Math.round(h*k);
+    const x=c.getContext('2d'); x.imageSmoothingQuality='high'; x.drawImage(img,0,0,c.width,c.height);
+    return c;
+  } finally { if(url) URL.revokeObjectURL(url); if(img.close) img.close(); }
+}
+const AMT=/(\d{1,3}(?:[ .]\d{3})+|\d+)\s?[.,]\s?(\d{2})(?!\d)/g;
+function amounts(line){
+  const out=[]; let m; AMT.lastIndex=0;
+  while((m=AMT.exec(line))){ if(/^(\s?%|[.\/-]\d)/.test(line.slice(AMT.lastIndex))) continue; out.push(parseFloat(m[1].replace(/[ .]/g,'')+'.'+m[2])); }
+  return out;
+}
+// German, Polish and English receipt wording. PAY lines are the amount owed; SUM lines are totals; SKIP lines are tax, cash handed over and change.
+const KEY_PAY=/zu\s*zahlen|zahlbetrag|endbetrag|endsumme|gesamtbetrag|do\s*zap[lł]aty|amount\s*due/i;
+const KEY_SUM=/summe|gesamt|total|suma|razem|betrag|brutto/i;
+const KEY_SKIP=/mwst|ust\b|netto|steuer|tax|vat|ptu|podatek|gegeben|bar\b|r[uü]ckgeld|zur[uü]ck|wechselgeld|reszta|got[oó]wka|change|cash|zwischensumme|subtotal|rabatt|sprzeda|opodatk/i;
+const KEY_CHANGE=/r[uü]ckgeld|zur[uü]ck|wechselgeld|reszta|change/i;
+function parseReceipt(text){
+  const lines=text.split('\n').map(l=>l.trim()).filter(Boolean);
+  const pick=re=>{
+    for(let i=lines.length-1;i>=0;i--){
+      if(!re.test(lines[i])||KEY_SKIP.test(lines[i])) continue;
+      let a=amounts(lines[i]);
+      if(!a.length&&lines[i+1]&&!KEY_SKIP.test(lines[i+1])) a=amounts(lines[i+1]);
+      if(a.length) return {a:a[a.length-1],i};
+    }
+    return null;
+  };
+  const hit=pick(KEY_PAY)||pick(KEY_SUM);
+  let a=hit?hit.a:null, sure=true, note='';
+  if(hit){
+    // A misread digit is easy to miss, so test the total two independent ways:
+    // the item prices above it should add up to it, and cash handed over minus change should equal it.
+    const near=(x,y)=>Math.abs(x-y)<0.005, last=l=>{ const v=amounts(l); return v.length?v[v.length-1]:null; };
+    const items=lines.slice(0,hit.i).filter(l=>!KEY_SKIP.test(l)&&!KEY_SUM.test(l)&&!KEY_PAY.test(l)).map(last).filter(v=>v!=null);
+    const given=lines.filter(l=>/gegeben|geg\.|bar\b|got[oó]wka|cash/i.test(l)&&!KEY_CHANGE.test(l)).map(last).find(v=>v!=null);
+    const change=lines.filter(l=>KEY_CHANGE.test(l)).map(last).find(v=>v!=null);
+    const checks=[];
+    if(items.length>=2) checks.push(Math.round(items.reduce((s,v)=>s+v,0)*100)/100);
+    if(given!=null&&change!=null&&given>change) checks.push(Math.round((given-change)*100)/100);
+    if(checks.length&&!checks.some(v=>near(v,a))){
+      if(checks.length===2&&near(checks[0],checks[1])){ a=checks[0]; note='fixed'; }
+      else note='doubt';
+    }
+  }
+  if(a==null){ sure=false; const all=lines.filter(l=>!KEY_SKIP.test(l)).flatMap(amounts); a=all.length?Math.max(...all):null; }
+  const c=/pln|z[lł]\b/i.test(text)?'PLN':/eur|€/i.test(text)?'EUR':/usd|\$/i.test(text)?'USD':curCountry()==='PL'?'PLN':'EUR';
+  const shop=lines.slice(0,6).find(l=>(l.match(/\p{L}/gu)||[]).length>=3);
+  const n=shop?shop.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}.!]+$/gu,'').replace(/\s+/g,' ').slice(0,32):'Receipt';
+  return {n:n||'Receipt',a,c,sure,note};
+}
+async function scanReceipt(file){
+  if(scan.busy||!file) return;
+  scan.busy=true; scan.draft=null; scanMsg('Getting the reader ready…');
+  try{
+    const canvas=await toCanvas(file), w=await getOcr();
+    const {data}=await w.recognize(canvas);
+    const r=parseReceipt(data.text);
+    if(r.a==null) scan.msg='Could not find a total in that photo. Try again closer, flat and in good light, or type it in.';
+    else {
+      scan.draft=r;
+      const why=!r.sure?' This is a best guess: no "total" line was found.':r.note==='fixed'?' The total line was unclear, so this is worked out from the item prices and the change given.':r.note==='doubt'?' The rest of the receipt does not add up to this, so look closely.':'';
+      scan.msg=`Read ${r.a.toFixed(2)} ${r.c} from the receipt.${why} Check it against the receipt, then tap Add.`;
+    }
+  }catch(e){
+    scan.msg=navigator.onLine?'Could not read that photo. Try again, or type it in.':'The receipt reader has not finished downloading (about 12 MB). Connect to the internet once and try again.';
+  }
+  scan.busy=false;
+  if(S.tab==='money'){ const y=window.scrollY; render(); window.scrollTo(0,y); }
+}
+// Download the reader in the background once, so scanning works later with no signal.
+async function warmOcr(){
+  try{
+    if(!navigator.onLine||!navigator.serviceWorker||!navigator.serviceWorker.controller) return;
+    const have=(await (await caches.open('railloop-ocr')).keys()).length;
+    if(have>=OCR_FILES.length) return;
+    for(const f of OCR_FILES) await fetch(OCR_BASE+f).then(r=>r.blob());
+  }catch(e){}
+}
+
 function vMoney(){
   const r=S.rates;
   const toUSD=(a,c)=>c==='USD'?a:a*(r[c]||0);
@@ -570,7 +673,9 @@ function vMoney(){
   <p class="small muted">Germany and Austria use euros. Poland (days 7–10) uses złoty.</p>
   <details><summary class="small">Edit exchange rates</summary><div class="row" style="margin-top:8px"><label class="small">1 EUR = $<input id="rE" type="number" step="0.01" value="${r.EUR}" style="width:80px"></label><label class="small">1 PLN = $<input id="rP" type="number" step="0.01" value="${r.PLN}" style="width:80px"></label><button class="btn" id="saveR">Save rates</button></div><p class="small muted">These are set by hand, so update them with today's rate from your bank.</p></details></div>
   <div class="panel"><h2>Spending</h2><div class="big">$${total.toFixed(0)}</div><p class="small muted" style="margin:4px 0 12px">Germany $${byC.DE.toFixed(0)}, Poland $${byC.PL.toFixed(0)}, Austria $${byC.AT.toFixed(0)}</p>
-  <div class="row"><input id="spN" type="text" placeholder="What" style="flex:2;min-width:120px"><input id="spA" type="number" inputmode="decimal" placeholder="Amount" style="width:100px"><select id="spC"><option>EUR</option><option>PLN</option><option>USD</option></select><button class="btn primary" id="addS">Add</button></div>
+  <div class="btnrow" style="margin:0 0 10px"><label class="btn primary" for="scanFile">Scan receipt</label><input id="scanFile" class="vh" type="file" accept="image/*"></div>
+  <div class="note small" id="scanMsg" role="status" ${scan.msg?'':'hidden'}>${esc(scan.msg)}</div>
+  <div class="row"><input id="spN" type="text" placeholder="What" value="${scan.draft?esc(scan.draft.n):''}" style="flex:2;min-width:120px"><input id="spA" type="number" inputmode="decimal" placeholder="Amount" value="${scan.draft?scan.draft.a.toFixed(2):''}" style="width:100px"><select id="spC">${['EUR','PLN','USD'].map(c=>`<option ${scan.draft&&scan.draft.c===c?'selected':''}>${c}</option>`).join('')}</select><button class="btn primary" id="addS">Add</button></div>
   ${S.spend.length?`<div class="tablewrap"><table style="margin-top:12px">${S.spend.slice().reverse().map(x=>`<tr><td>${esc(x.n)}<div class="small muted">Day ${x.d||'–'}</div></td><td class="r">${esc((+x.a).toFixed(2))} ${esc(x.c)}<div class="small muted">$${toUSD(+x.a,x.c).toFixed(2)}</div></td><td class="r"><button class="x" aria-label="Delete" data-rms="${x.id}">×</button></td></tr>`).join('')}</table></div>`:'<p class="small muted">No spending logged yet. Add your first coffee.</p>'}
   </div>`;
   return h;
@@ -681,13 +786,14 @@ document.getElementById('app').addEventListener('click',e=>{
   if(t.id==='saveR'){ const e1=+document.getElementById('rE').value, p1=+document.getElementById('rP').value; if(e1>0)S.rates.EUR=e1; if(p1>0)S.rates.PLN=p1; save(); render(); }
   if(t.id==='addS'){
     const n=document.getElementById('spN').value.trim()||'Expense', a=parseFloat(document.getElementById('spA').value), c=document.getElementById('spC').value;
-    if(a>0){ const td=tripDay(); S.spend.push({id:'s'+Date.now(),n,a,c,k:curCountry(),d:(td>=1&&td<=14)?td:''}); save(); render(); }
+    if(a>0){ const td=tripDay(); S.spend.push({id:'s'+Date.now(),n,a,c,k:curCountry(),d:(td>=1&&td<=14)?td:''}); scan.draft=null; scan.msg=''; save(); render(); }
   }
   if(t.dataset.rms){ S.spend=S.spend.filter(x=>x.id!==t.dataset.rms); save(); render(); }
 });
 document.getElementById('app').addEventListener('change',e=>{
   const t=e.target;
   if(t.dataset.check){ S.done[t.dataset.check]=t.checked; save(); const y=window.scrollY; render(); window.scrollTo(0,y); }
+  if(t.id==='scanFile'){ const f=t.files[0]; t.value=''; scanReceipt(f); }
   if(t.id==='spC'){ /* keep selection */ }
 });
 document.getElementById('app').addEventListener('input',e=>{ if(e.target.id==='cvA'||e.target.id==='cvC') convert(); });
@@ -701,7 +807,10 @@ document.addEventListener('visibilitychange',()=>{
   if(document.visibilityState!=='visible') return;
   const now=tripDay(); if(now!==shownDay){ shownDay=now; render(); }
 });
-if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); setTimeout(warmOcr,6000); });
+  navigator.serviceWorker.addEventListener('controllerchange',()=>setTimeout(warmOcr,3000));
+}
 // Ask iOS not to clear the saved checklist and spending log.
 if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
 </script>

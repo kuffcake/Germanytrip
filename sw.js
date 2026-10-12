@@ -1,10 +1,12 @@
 /* Offline support: everything the app needs is cached on first load.
    Bump VERSION whenever any file changes so phones pick up the update. */
-const VERSION = 'railloop-v4';
+const VERSION = 'railloop-v5';
 // Street map tiles are saved as you view them, so places you looked at on wifi still show with no signal.
 const TILES = 'railloop-tiles';
 const TILE_HOST = 'tile.openstreetmap.org';
 const TILE_LIMIT = 1500;
+// The receipt reader (about 12 MB) is kept in its own cache so app updates do not download it again.
+const OCR = 'railloop-ocr';
 const ASSETS = [
   './',
   'index.html',
@@ -55,22 +57,23 @@ self.addEventListener('install', e => {
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
-      .then(keys => Promise.all(keys.filter(k => k !== VERSION && k !== TILES).map(k => caches.delete(k))))
+      .then(keys => Promise.all(keys.filter(k => ![VERSION, TILES, OCR].includes(k)).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
 
-async function tile(req) {
-  const cache = await caches.open(TILES);
+// Serve from the named cache if present; otherwise fetch, keep a copy, and optionally cap the cache size.
+async function cacheFirst(name, req, limit) {
+  const cache = await caches.open(name);
   const hit = await cache.match(req);
   if (hit) return hit;
   const res = await fetch(req);
   if (res.ok) {
     await cache.put(req, res.clone());
-    // Occasionally drop the oldest tiles so the cache cannot grow without bound.
-    if (Math.random() < 0.05) {
+    // Occasionally drop the oldest entries so the cache cannot grow without bound.
+    if (limit && Math.random() < 0.05) {
       const keys = await cache.keys();
-      if (keys.length > TILE_LIMIT) await Promise.all(keys.slice(0, keys.length - TILE_LIMIT).map(k => cache.delete(k)));
+      if (keys.length > limit) await Promise.all(keys.slice(0, keys.length - limit).map(k => cache.delete(k)));
     }
   }
   return res;
@@ -79,8 +82,10 @@ async function tile(req) {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
-  if (new URL(req.url).hostname === TILE_HOST) { e.respondWith(tile(req)); return; }
-  if (new URL(req.url).origin !== self.location.origin) return;
+  const url = new URL(req.url);
+  if (url.hostname === TILE_HOST) { e.respondWith(cacheFirst(TILES, req, TILE_LIMIT)); return; }
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.includes('/ocr/')) { e.respondWith(cacheFirst(OCR, req)); return; }
   // Cache first so the app opens instantly with no signal; refresh the copy in the background.
   e.respondWith(
     caches.open(VERSION).then(async cache => {
