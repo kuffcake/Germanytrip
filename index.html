@@ -79,6 +79,11 @@ nav.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--si
 .btnrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:var(--paper);text-decoration:none;font-size:14px;font-weight:500;cursor:pointer}
 .btn.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.photos{display:flex;gap:10px;overflow-x:auto;margin:4px 0 12px;scrollbar-width:none}
+.photos::-webkit-scrollbar{display:none}
+.photos figure{margin:0;flex:1 0 62%;min-width:0}
+.photos img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:10px;background:var(--line)}
+.photos figcaption{margin-top:4px}
 .sight{padding:10px 0;border-top:1px solid var(--line)}
 .sight:first-child{border-top:0;padding-top:0}
 .sight b{font-weight:600}
@@ -128,6 +133,7 @@ main.maptab{display:flex;flex-direction:column;height:calc(100dvh - env(safe-are
 .pin.p-city i{width:20px;height:20px;background:var(--card);border:5px solid var(--c)}
 .pin.p-city.p-now i{background:var(--signal)}
 .pin.p-sight i{width:14px;height:14px;background:var(--c);border:2px solid #fff}
+.pin.p-extra i{width:13px;height:13px;background:#fff;border:3px solid var(--c);border-radius:2px;transform:rotate(45deg)}
 .pin.p-me i{width:16px;height:16px;background:#1E88E5;border:3px solid #fff;box-shadow:0 0 0 6px rgba(30,136,229,.25)}
 .leaflet-tooltip.city{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;font-weight:600;font-size:14px;box-shadow:none}
 .leaflet-tooltip.city::before{display:none}
@@ -183,6 +189,7 @@ td.r{text-align:right;white-space:nowrap}
 
 <script src="vendor/leaflet.js"></script>
 <script src="vendor/borders.js"></script>
+<script src="photos/credits.js"></script>
 <script>
 /* ---------- Data from the itinerary ---------- */
 const CC = {DE:'de',PL:'pl',AT:'at',US:'us'};
@@ -197,7 +204,7 @@ const DAYS = [
  {n:2, c:'DE', place:'Berlin', title:'Arrival day', night:'Berlin',
   plan:'Arrive midday, rest and adjust. An easy first walk in the evening.',
   legs:[{a:'BER Airport',b:'Berlin Hauptbahnhof',mode:'FEX Airport Express or S-Bahn',dur:'about 30–45 min'}],
-  sights:[{s:'Brandenburg Gate',q:'Brandenburg Gate Berlin'},{s:'Unter den Linden',q:'Unter den Linden Berlin'},{s:'Pariser Platz',q:'Pariser Platz Berlin'}],
+  sights:[{s:'Brandenburg Gate',q:'Brandenburg Gate Berlin',n:'Free to visit.'},{s:'Unter den Linden',q:'Unter den Linden Berlin'},{s:'Pariser Platz',q:'Pariser Platz Berlin'}],
   tips:['BER airport is in fare zone C, so buy a Berlin ABC ticket (not AB) for the ride in, unless you already have a Deutschlandticket.']},
  {n:3, c:'DE', place:'Berlin', title:'Museum Island and the Reichstag', night:'Berlin',
   plan:'A full day in the centre.',
@@ -207,27 +214,27 @@ const DAYS = [
  {n:4, c:'DE', place:'Potsdam', title:'Day trip to Potsdam', night:'Berlin',
   plan:'Morning train to Potsdam, back to Berlin by evening.',
   legs:[{a:'Berlin Hauptbahnhof',b:'Potsdam Hauptbahnhof',mode:'RE1 regional train or S7',dur:'about 45 min each way'}],
-  sights:[{s:'Sanssouci Palace and park',q:'Schloss Sanssouci Potsdam'},{s:'Cecilienhof',q:'Schloss Cecilienhof Potsdam'},{s:'East Side Gallery (evening)',q:'East Side Gallery Berlin'},{s:'Berlin Wall Memorial (evening)',q:'Berlin Wall Memorial Bernauer Strasse'}],
+  sights:[{s:'Sanssouci Palace and park',q:'Schloss Sanssouci Potsdam',n:'Frederick the Great’s summer palace.'},{s:'Cecilienhof',q:'Schloss Cecilienhof Potsdam'},{s:'East Side Gallery (evening)',q:'East Side Gallery Berlin',n:'The longest surviving stretch of the Berlin Wall, now open-air murals.'},{s:'Berlin Wall Memorial (evening)',q:'Berlin Wall Memorial Bernauer Strasse'}],
   tips:['Potsdam is in zone C: use an ABC ticket or the Deutschlandticket.']},
  {n:5, c:'DE', place:'Wittenberg and Leipzig', title:'Luther town, then on to Leipzig', night:'Leipzig',
   plan:'Morning free in Berlin, train to Wittenberg for about two hours, then continue to Leipzig.',
   legs:[{a:'Berlin Hauptbahnhof',b:'Lutherstadt Wittenberg Hbf',mode:'Train',dur:'1h45'},{a:'Lutherstadt Wittenberg Hbf',b:'Leipzig Hauptbahnhof',mode:'Train',dur:'39 min'}],
-  sights:[{s:'Castle Church (the 95 Theses door)',q:'Schlosskirche Wittenberg'}],
+  sights:[{s:'Castle Church (the 95 Theses door)',q:'Schlosskirche Wittenberg',n:'Where Luther posted the 95 Theses. The old town is UNESCO-listed.'}],
   tips:['The station is signed "Lutherstadt Wittenberg", not just "Wittenberg". There is a different Wittenberge on the Hamburg line.','You are carrying your bags today. Check station lockers ahead of time or pack light.']},
  {n:6, c:'DE', place:'Leipzig and Dresden', title:'Bach in the morning, Dresden by night', night:'Dresden',
   plan:'Leipzig sights in the morning, afternoon train to Dresden.',
   legs:[{a:'Leipzig Hauptbahnhof',b:'Dresden Hauptbahnhof',mode:'Train',dur:'1h15'}],
-  sights:[{s:'St. Thomas Church',q:'Thomaskirche Leipzig'},{s:'Bach Museum',q:'Bach-Museum Leipzig'},{s:'Monument to the Battle of the Nations',q:'Völkerschlachtdenkmal Leipzig'},{s:'Zwinger Palace',q:'Zwinger Dresden'},{s:'Frauenkirche after dark',q:'Frauenkirche Dresden'}],
+  sights:[{s:'St. Thomas Church',q:'Thomaskirche Leipzig',n:'Bach was cantor here for 27 years.'},{s:'Bach Museum',q:'Bach-Museum Leipzig',n:'Next door to St. Thomas Church.'},{s:'Monument to the Battle of the Nations',q:'Völkerschlachtdenkmal Leipzig'},{s:'Zwinger Palace',q:'Zwinger Dresden'},{s:'Frauenkirche after dark',q:'Frauenkirche Dresden'}],
   tips:[]},
  {n:7, c:'PL', from:'DE', place:'Wrocław and Kraków', title:'Border day into Poland', night:'Kraków',
   plan:'The longest travel day. Dresden morning at leisure, train to Wrocław, walk the Rynek if the layover is 2+ hours, then on to Kraków.',
   legs:[{a:'Dresden Hauptbahnhof',b:'Wrocław Główny',mode:'Train, crosses into Poland',dur:'3h40'},{a:'Wrocław Główny',b:'Kraków Główny',mode:'PKP Intercity',dur:'3h'}],
-  sights:[{s:'Brühl\u2019s Terrace, Dresden',q:'Brühlsche Terrasse Dresden'},{s:'Rynek, Wrocław (layover)',q:'Rynek Wrocław'}],
+  sights:[{s:'Brühl\u2019s Terrace, Dresden',q:'Brühlsche Terrasse Dresden'},{s:'Rynek, Wrocław (layover)',q:'Rynek Wrocław',n:'The colorful market square. Worth it only if your layover is 2+ hours.'}],
   tips:['Currency changes to Polish złoty (PLN) today. Cards work almost everywhere; take a little cash from a bank ATM, and skip the Euronet machines.','The Deutschlandticket stops at the German border. This leg needs a proper international or Polish ticket.','Pack food and water for 7 hours of trains.']},
  {n:8, c:'PL', place:'Kraków', title:'Old Town and Kazimierz', night:'Kraków',
   plan:'Castle, cathedral, market square and the former Jewish district.',
   legs:[],
-  sights:[{s:'Wawel Castle and Cathedral',q:'Wawel Castle Krakow'},{s:'Old Town Rynek',q:'Rynek Główny Kraków'},{s:'St. Mary\u2019s Basilica',q:'St. Mary\u2019s Basilica Krakow',n:'A trumpet call plays from the tower every hour.'},{s:'Kazimierz',q:'Kazimierz Krakow'}],
+  sights:[{s:'Wawel Castle and Cathedral',q:'Wawel Castle Krakow',n:'Seat of Polish kings for centuries.'},{s:'Old Town Rynek',q:'Rynek Główny Kraków'},{s:'St. Mary\u2019s Basilica',q:'St. Mary\u2019s Basilica Krakow',n:'A trumpet call plays from the tower every hour.'},{s:'Kazimierz',q:'Kazimierz Krakow'}],
   tips:['Validate tram and bus tickets in the machine on board ("skasuj bilet").']},
  {n:9, c:'PL', place:'Kraków', title:'Auschwitz-Birkenau', night:'Kraków',
   plan:'A full-day trip to the memorial and museum. An emotionally heavy day; keep the evening low-key.',
@@ -237,7 +244,7 @@ const DAYS = [
  {n:10, c:'AT', from:'PL', place:'Vienna', title:'Border day into Austria', night:'Vienna',
   plan:'Travel day. The line runs near Bratislava: stop there today, or save it as a half day from Vienna.',
   legs:[{a:'Kraków Główny',b:'Wien Hauptbahnhof',mode:'Train',dur:'about 5h40'}],
-  sights:[{s:'Bratislava Old Town (optional)',q:'Bratislava Old Town'}],
+  sights:[{s:'Bratislava Old Town (optional)',q:'Bratislava Old Town',n:'About 1 hr from Vienna. The easiest extra country on the trip: Slovakia, almost on the direct rail line.'}],
   tips:['Back to euros today.']},
  {n:11, c:'AT', place:'Vienna', title:'Palaces and the Ringstrasse', night:'Vienna',
   plan:'Imperial Vienna in one day.',
@@ -247,17 +254,17 @@ const DAYS = [
  {n:12, c:'DE', from:'AT', place:'Munich', title:'Vienna to Munich', night:'Munich',
   plan:'Late-morning train to Munich.',
   legs:[{a:'Wien Hauptbahnhof',b:'München Hauptbahnhof',mode:'ÖBB Railjet',dur:'4h30'}],
-  sights:[{s:'Mauthausen Memorial (only with real flexibility)',q:'Mauthausen Memorial'}],
+  sights:[{s:'Mauthausen Memorial (only with real flexibility)',q:'Mauthausen Memorial',n:'Near Linz, on the Vienna to Munich line. A former concentration camp, similar in tone to Dachau and Auschwitz. Adds a half day.'}],
   tips:['Book this train early on oebb.at or bahn.de; saver fares climb as seats sell.']},
  {n:13, c:'DE', place:'Munich', title:'Marienplatz and one big choice', night:'Munich',
   plan:'Marienplatz and Nymphenburg, then pick one: Dachau Memorial or Neuschwanstein. Doing both needs a 15th day.',
   legs:[], choice:true,
-  sights:[{s:'Marienplatz and the Glockenspiel',q:'Marienplatz Munich',n:'Shows at 11am and noon, plus 5pm March to October.'},{s:'Nymphenburg Palace',q:'Nymphenburg Palace Munich'}],
+  sights:[{s:'Marienplatz and the Glockenspiel',q:'Marienplatz Munich',n:'Shows at 11am and noon, plus 5pm March to October.'},{s:'Nymphenburg Palace',q:'Nymphenburg Palace Munich',n:'Summer residence of the Bavarian royals. Reach it by tram.'}],
   tips:[]},
  {n:14, c:'DE', place:'Nuremberg', title:'Nuremberg, then home', night:null,
   plan:'Morning train to Nuremberg, then an evening flight home. You land in LA the same calendar day.',
   legs:[{a:'München Hauptbahnhof',b:'Nürnberg Hauptbahnhof',mode:'ICE or regional train',dur:'1h30'},{a:'Munich or Nuremberg airport',b:'Los Angeles (LAX)',mode:'Flight',dur:'13–15 hrs',flight:true}],
-  sights:[{s:'Nuremberg Castle',q:'Kaiserburg Nürnberg'},{s:'Documentation Center Nazi Party Rally Grounds',q:'Dokumentationszentrum Reichsparteitagsgelände Nürnberg',n:'Check current opening status before you go.'}],
+  sights:[{s:'Nuremberg Castle',q:'Kaiserburg Nürnberg',n:'Panoramic views over the old town.'},{s:'Documentation Center Nazi Party Rally Grounds',q:'Dokumentationszentrum Reichsparteitagsgelände Nürnberg',n:'An excellent museum on the rise of the Nazi regime. Check current opening status before you go.'}],
   tips:['Leave generous time for the airport. Plan luggage storage in Nuremberg or keep bags with you.']}
 ];
 const CHOICE = {
@@ -284,6 +291,35 @@ const GEO = {
  'Kaiserburg Nürnberg':[49.4579,11.0758],'Dokumentationszentrum Reichsparteitagsgelände Nürnberg':[49.4336,11.1126],
  'KZ-Gedenkstätte Dachau':[48.2700,11.4680],'Neuschwanstein Castle':[47.5576,10.7498]
 };
+
+/* Photos by day: [file in photos/, caption]. Credits are in photos/credits.js */
+const PHOTOS = {
+ 2:[['brandenburg-gate','Brandenburg Gate']],
+ 3:[['museum-island','Museum Island']],
+ 4:[['sanssouci','Sanssouci Palace'],['east-side-gallery','East Side Gallery']],
+ 5:[['castle-church','Castle Church, Wittenberg']],
+ 6:[['thomaskirche','St. Thomas Church, Leipzig'],['dresden','Zwinger Palace and Frauenkirche, Dresden']],
+ 7:[['wroclaw-rynek','Rynek, Wrocław']],
+ 8:[['wawel','Wawel Castle and Cathedral']],
+ 9:[['birkenau','Auschwitz-Birkenau']],
+ 10:[['bratislava','Bratislava']],
+ 11:[['schoenbrunn','Schönbrunn Palace'],['stephansdom','St. Stephen’s Cathedral']],
+ 13:[['marienplatz','Marienplatz'],['nymphenburg','Nymphenburg Palace'],['neuschwanstein','Neuschwanstein Castle']]
+};
+/* Places close to the route that are not in the 14-day plan. d = the day they would attach to. */
+const EXTRAS = [
+ {s:'Bastei Bridge, Saxon Switzerland',q:'Basteibrücke',c:'DE',d:6,dist:'45–60 min from Dresden',n:'Dramatic sandstone cliffs.',tag:'Needs an extra half day',ll:[50.9619,14.0731]},
+ {s:'Wieliczka Salt Mine',q:'Wieliczka Salt Mine',c:'PL',d:8,dist:'30–45 min from Kraków',n:'UNESCO site, with an underground chapel carved entirely from salt.',tag:'Optional add-on',ll:[49.9833,20.0553]},
+ {s:'Salzburg Old Town',q:'Salzburg Altstadt',c:'AT',d:13,dist:'about 1.5 hrs from Munich',n:'The easiest cross-border day trip from Munich, if a 15th day opens up.',tag:'Great extension',ll:[47.7995,13.0447]},
+ {s:'Rothenburg ob der Tauber',q:'Rothenburg ob der Tauber',c:'DE',d:14,dist:'1–2 hrs from Nuremberg',n:'Trimmed from this 14-day version for time.',tag:'Trimmed for time',ll:[49.3780,10.1790]},
+ {s:'Bamberg',q:'Bamberg Altstadt',c:'DE',d:14,dist:'1–2 hrs from Nuremberg',n:'Trimmed from this 14-day version for time.',tag:'Trimmed for time',ll:[49.8917,10.8869]},
+ {s:'Bayreuth',q:'Bayreuth',c:'DE',d:14,dist:'1–2 hrs from Nuremberg',n:'Trimmed from this 14-day version for time.',tag:'Trimmed for time',ll:[49.9456,11.5713]}
+];
+const PLAN_NOTES = [
+ 'Fitting this into 14 days: the original wish list (4–5 days Berlin, 3–4 Vienna, 2 each for Munich and Nuremberg, plus Bayreuth) adds up closer to 16–18 days. This version trims Berlin to 3.5 days, Vienna to 2, Munich to 1.5, and drops the second Nuremberg day and Bayreuth entirely.',
+ 'To restore them, either add 3–4 days to the trip, or cut one leg, for example skip Wrocław, Kraków and Auschwitz and go straight from Dresden to Vienna.',
+ 'The original notes list "Kraków to Venice", but the travel time given (5h40) matches Kraków to Vienna, not Venice. This plan assumes Vienna is correct.'
+];
 
 const BOOK_DEFAULT = [
  {id:'fl',t:'Flights LAX to Berlin, and Munich or Nuremberg to LAX',grp:'Travel'},
@@ -396,6 +432,7 @@ function dayBody(d){
   if(d.choice && S.choice){ sights.push(CHOICE[S.choice]); legs.push(CHOICE[S.choice].leg); }
   let h='';
   if(d.plan) h+=`<p style="margin:0 0 10px">${esc(d.plan)}</p>`;
+  if(PHOTOS[d.n]) h+=`<div class="photos">${PHOTOS[d.n].map(p=>`<figure><img src="photos/${p[0]}.jpg" alt="${esc(p[1])}" loading="lazy"><figcaption class="small muted">${esc(p[1])}</figcaption></figure>`).join('')}</div>`;
   if(isSunday(d.n)) h+=`<div class="note small">This day is a Sunday. Most shops will be closed; buy food and essentials the day before.</div>`;
   if(d.choice){
     h+=`<div class="panel" style="background:var(--paper)"><h2 style="font-size:19px">Pick one for this afternoon</h2><div class="seg" role="group" aria-label="Day 13 choice">
@@ -464,7 +501,10 @@ function vRoute(){
   DAYS.forEach(d=>{
     h+=`<div class="stop ${td===d.n?'now':''}" id="day${d.n}" style="--c:${col(d.c)};--soft:${soft(d.c)}"><details ${td===d.n||focusDay===d.n?'open':''}><summary><span class="dn">${d.n}</span><span class="st"><h3>${esc(d.title)}</h3><span class="small muted">${S.start?esc(dateFor(d.n))+', ':''}${d.legs.length?esc(d.legs.map(l=>l.dur).join(' + ')):'No long transfers'}</span></span></summary><div class="body">${dayBody(d)}</div></details></div>`;
   });
-  h+=`</div><div class="panel" style="margin-top:18px"><h2>Trip settings</h2><label for="sd2" class="small muted">Departure date (Day 1)</label><div class="row" style="margin-top:6px"><input id="sd2" type="date" value="${esc(S.start)}"><button class="btn" id="setd2">Update</button></div></div>`;
+  h+=`</div><div class="panel" style="margin-top:18px"><h2>If the trip grows</h2><p class="small muted" style="margin:0 0 6px">Close to the route, but not in the 14-day plan.</p>${EXTRAS.map(x=>`<div class="sight"><b>${esc(x.s)}</b><span class="chip" style="margin-left:6px;--c:${col(x.c)};--soft:${soft(x.c)}">${esc(x.tag)}</span><div class="small muted">${esc(x.dist)}. ${esc(x.n)}</div><div class="btnrow"><a class="btn" target="_blank" rel="noopener" href="${g(x.q)}">Open in Maps</a></div></div>`).join('')}</div>
+  <div class="panel"><h2>How this plan was trimmed</h2>${PLAN_NOTES.map(t=>`<div class="note small">${esc(t)}</div>`).join('')}</div>
+  <div class="panel"><details><summary class="small">Photo credits</summary><p class="small muted">Photos are from Wikimedia Commons.</p>${Object.values(PHOTOS).flat().map(p=>{const c=PHOTO_CREDITS[p[0]]; return c?`<div class="small" style="padding:3px 0">${esc(p[1])}: ${esc(c[0])}, ${esc(c[1])}. <a target="_blank" rel="noopener" href="${esc(c[2])}">Source</a></div>`:'';}).join('')}</details></div>`;
+  h+=`<div class="panel"><h2>Trip settings</h2><label for="sd2" class="small muted">Departure date (Day 1)</label><div class="row" style="margin-top:6px"><input id="sd2" type="date" value="${esc(S.start)}"><button class="btn" id="setd2">Update</button></div></div>`;
   return h;
 }
 
@@ -551,7 +591,10 @@ function initMap(){
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,crossOrigin:true,attribution:'© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'}).addTo(map);
 
   const line=(a,b,c,side)=>L.polyline([a,b],{className:'rt'+(side?' side':''),interactive:false}).addTo(map).getElement().style.setProperty('--c',col(c));
-  STOPS.forEach((s,i)=>{ if(i) line(STOP_GEO[STOPS[i-1][0]],STOP_GEO[s[0]],s[2]); });
+  // Potsdam is a day trip out of Berlin, so it hangs off the main line as a dashed spur.
+  const main=STOPS.filter(s=>s[0]!=='Potsdam');
+  main.forEach((s,i)=>{ if(i) line(STOP_GEO[main[i-1][0]],STOP_GEO[s[0]],s[2]); });
+  line(STOP_GEO['Berlin'],STOP_GEO['Potsdam'],'DE',true);
   line(STOP_GEO['Kraków'],GEO['Auschwitz I Museum Oświęcim'],'PL',true);
   if(S.choice) line(STOP_GEO['Munich'],GEO[CHOICE[S.choice].q],'DE',true);
 
@@ -564,6 +607,7 @@ function initMap(){
     const list=d.choice&&S.choice?d.sights.concat(CHOICE[S.choice]):d.sights;
     list.forEach(x=>{ if(GEO[x.q]) L.marker(GEO[x.q],{icon:pin('p-sight',col(d.c)),title:x.s}).bindPopup(popup(x.s,'Day '+d.n+(x.n?'. '+x.n:''),d.n,x.q)).addTo(sights); });
   });
+  EXTRAS.forEach(x=>L.marker(x.ll,{icon:pin('p-extra',col(x.c)),title:x.s}).bindPopup(popup(x.s,'Not in the plan. '+x.dist+'. '+x.n,x.d,x.q)).addTo(sights));
   // Zoomed out you see the loop and city names; zoom in and the sights take over.
   const layers=()=>{ const near=map.getZoom()>=9; near?(map.addLayer(sights),map.removeLayer(cities)):(map.addLayer(cities),map.removeLayer(sights)); };
   map.on('zoomend',layers);

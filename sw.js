@@ -1,6 +1,6 @@
 /* Offline support: everything the app needs is cached on first load.
    Bump VERSION whenever any file changes so phones pick up the update. */
-const VERSION = 'railloop-v2';
+const VERSION = 'railloop-v3';
 // Street map tiles are saved as you view them, so places you looked at on wifi still show with no signal.
 const TILES = 'railloop-tiles';
 const TILE_HOST = 'tile.openstreetmap.org';
@@ -12,6 +12,23 @@ const ASSETS = [
   'vendor/leaflet.js',
   'vendor/leaflet.css',
   'vendor/borders.js',
+  'photos/credits.js',
+  'photos/brandenburg-gate.jpg',
+  'photos/museum-island.jpg',
+  'photos/sanssouci.jpg',
+  'photos/east-side-gallery.jpg',
+  'photos/castle-church.jpg',
+  'photos/thomaskirche.jpg',
+  'photos/dresden.jpg',
+  'photos/wroclaw-rynek.jpg',
+  'photos/wawel.jpg',
+  'photos/birkenau.jpg',
+  'photos/bratislava.jpg',
+  'photos/schoenbrunn.jpg',
+  'photos/stephansdom.jpg',
+  'photos/marienplatz.jpg',
+  'photos/nymphenburg.jpg',
+  'photos/neuschwanstein.jpg',
   'fonts/fonts.css',
   'fonts/barlow-400-latin.woff2',
   'fonts/barlow-400-latin-ext.woff2',
